@@ -96,6 +96,8 @@ export const UpdateAssetBody = z.object({
   priority: z.enum(["debe-aparecer", "opcional"]).optional(),
   order: z.number().optional(),
   category: AssetCategory.optional(),
+  /** Corregir a mano la clasificación del análisis (a-roll = alguien habla; b-roll = toma de apoyo). */
+  role: z.enum(["a-roll", "b-roll", "mixto", "desconocido"]).optional(),
 });
 export type UpdateAssetBody = z.input<typeof UpdateAssetBody>;
 
