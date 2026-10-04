@@ -64,14 +64,14 @@ data/                                 (ignorado por git) base de datos, archivos
 ## Comandos
 
 ```bash
-pnpm setup          # instala dependencias, worker de Python, skills, crea .env
+pnpm instalar          # instala dependencias, worker de Python, skills, crea .env
 pnpm dev            # servidor (4000) + interfaz (5173) con recarga
 pnpm start          # compila la interfaz y la sirve desde el servidor en http://localhost:4000
 pnpm typecheck      # TypeScript en todos los paquetes
 pnpm test           # pruebas unitarias (vitest)
 pnpm test:e2e       # pruebas de interfaz (Playwright)
 pnpm material-prueba  # genera clips de prueba en data/muestras
-pnpm doctor         # diagnóstico: ffmpeg, Python, transcripción, llaves, HyperFrames
+pnpm diagnostico         # diagnóstico: ffmpeg, Python, transcripción, llaves, HyperFrames
 ```
 
 ## Convenciones de código
@@ -87,7 +87,7 @@ pnpm doctor         # diagnóstico: ffmpeg, Python, transcripción, llaves, Hype
 
 ## Skills para agentes
 
-- Las skills de HyperFrames se instalan con `pnpm setup` (o `npx skills add heygen-com/hyperframes --full-depth`)
+- Las skills de HyperFrames se instalan con `pnpm instalar` (o `npx skills add heygen-com/hyperframes --full-depth`)
   en `.agents/skills/` (enlazadas a `.claude/skills/`). Están en `.gitignore`; `skills-lock.json` fija versiones
   y se restauran con `npx skills experimental_install`.
 - Los estilos guardados por el editor se exportan como skills (`SKILL.md` + `preset.json` + assets + plantillas).

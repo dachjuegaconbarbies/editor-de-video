@@ -177,6 +177,8 @@ export type VideoClip = z.infer<typeof VideoClip>;
 
 export const OverlayLayout = z.enum([
   "pantalla-completa",
+  /** b-roll de fondo a pantalla completa y la persona que habla en un recuadro. */
+  "fondo-con-orador",
   "pip-arriba-der",
   "pip-arriba-izq",
   "pip-abajo-der",
@@ -347,6 +349,13 @@ export const Recipe = z.object({
   style: StyleTokens.default(StyleTokens.parse({})),
   tracks: RecipeTracks.default(RecipeTracks.parse({})),
   ai: z.array(AiRequest).default([]),
+  /** Duración objetivo pedida (la revisión de calidad verifica que se cumpla). */
+  target: z
+    .object({
+      duration: z.number().min(1).nullable().default(null),
+      mode: z.enum(["auto", "aproximada", "exacta"]).default("auto"),
+    })
+    .default({ duration: null, mode: "auto" }),
   /** Resumen editorial de Claude (qué hizo y por qué). */
   notes: z.string().default(""),
   meta: z
@@ -361,6 +370,15 @@ export const Recipe = z.object({
     .default({ generator: "demo", model: null, styleId: null, styleVersion: null, appliedRuleIds: [] }),
 });
 export type Recipe = z.infer<typeof Recipe>;
+
+/** ¿La duración cumple el objetivo? (aproximada ±15 %, exacta ±0.5 s). */
+export function durationMeetsTarget(recipe: Pick<Recipe, "duration" | "target">): { ok: boolean; detail: string } {
+  const { duration, mode } = recipe.target;
+  if (duration == null || mode === "auto") return { ok: true, detail: "Sin duración objetivo estricta." };
+  const tol = mode === "exacta" ? 0.5 : duration * 0.15;
+  const ok = Math.abs(recipe.duration - duration) <= tol;
+  return { ok, detail: `Duración ${recipe.duration.toFixed(1)} s; objetivo ${duration} s (${mode}, tolerancia ±${tol.toFixed(1)} s).` };
+}
 export type RecipeInput = z.input<typeof Recipe>;
 
 // ---------------------------------------------------------------------------

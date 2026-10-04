@@ -88,6 +88,15 @@ export const AssetAnalysis = z.object({
   description: z.string().default(""),
   /** Tiene voz (para transcribir). */
   hasSpeech: z.boolean().nullable().default(null),
+  /**
+   * Rol de la toma: a-roll = alguien habla (toma principal); b-roll = toma de apoyo sin voz principal
+   * (paisaje, producto, detalle, ambiente); mixto = tiene partes de ambos.
+   */
+  role: z.enum(["a-roll", "b-roll", "mixto", "desconocido"]).default("desconocido"),
+  /** Fragmentos aprovechables como b-roll (estables, sin voz, visualmente interesantes). */
+  brollSegments: z
+    .array(z.object({ start: z.number(), end: z.number(), score: z.number().min(0).max(1), description: z.string().default(""), tags: z.array(z.string()).default([]) }))
+    .default([]),
 });
 export type AssetAnalysis = z.infer<typeof AssetAnalysis>;
 
@@ -431,6 +440,7 @@ export const RuleCheck = z.discriminatedUnion("type", [
   z.object({ type: z.literal("color-resaltado"), color: z.string() }),
   z.object({ type: z.literal("musica-volumen-max"), gainDb: z.number() }),
   z.object({ type: z.literal("texto-palabra"), wrong: z.string(), right: z.string() }),
+  z.object({ type: z.literal("duracion-objetivo"), seconds: z.number(), mode: z.enum(["aproximada", "exacta"]) }),
 ]);
 export type RuleCheck = z.infer<typeof RuleCheck>;
 

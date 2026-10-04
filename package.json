@@ -9,7 +9,7 @@
     "node": ">=22.13"
   },
   "scripts": {
-    "setup": "node scripts/setup.mjs",
+    "instalar": "node scripts/setup.mjs",
     "dev": "concurrently -k -n server,web -c blue,magenta \"pnpm --filter @autoeditor/server dev\" \"pnpm --filter @autoeditor/web dev\"",
     "start": "pnpm --filter @autoeditor/web build && pnpm --filter @autoeditor/server start",
     "build": "pnpm -r build",
@@ -17,7 +17,7 @@
     "test": "pnpm -r --if-present test",
     "test:e2e": "pnpm --filter @autoeditor/web test:e2e",
     "material-prueba": "node scripts/generar-material-prueba.mjs",
-    "doctor": "node scripts/setup.mjs --check"
+    "diagnostico": "node scripts/setup.mjs --check"
   },
   "devDependencies": {
     "concurrently": "^10.0.5",

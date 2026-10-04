@@ -65,6 +65,7 @@ Zonas de arrastre por categoría a la izquierda, conectadas al contenedor "Mater
 - Cada archivo con miniatura, duración, peso y una nota opcional ("abre con este").
 - Acepta lo que sale de un celular o una cámara (vertical u horizontal, distintos códecs y framerates) y archivos pesados, con barra de progreso.
 - El análisis (transcripción, escenas, calidad de audio) arranca en segundo plano al subir, sin esperar a GENERAR.
+- **Detección de B-roll:** el análisis clasifica cada toma como A-roll (alguien hablando) o B-roll (toma de apoyo: paisaje, producto, detalle, ambiente) y marca los fragmentos aprovechables como B-roll, para usarlos de fondo de las tomas o como cortes sobre lo que se dice.
 
 ### 4.2 CONTEXTO (opcional; cada nodo con su interruptor "TENGO …")
 - **TENGO GUION** → subir PDF / DOCX / TXT o pegar texto. Claude lo sigue como estructura (orden, textos en pantalla, subtítulos). Apagado: Claude arma la estructura solo.
@@ -92,16 +93,18 @@ Aparece en cuanto subo material con voz.
 ### 4.4 ELEMENTOS Y HERRAMIENTAS
 Paleta flotante arriba (como los botones morados de mi diagrama): cada botón agrega o quita su nodo en esta etapa, con su banderín ON/OFF.
 - **Edición:** quitar silencios y muletillas, ritmo (lento / medio / rápido), transiciones, zooms y punch-ins, reencuadre automático a vertical siguiendo a quien habla, corrección de color.
+- **B-roll automático:** usa los fragmentos detectados como B-roll (o generados con IA) de fondo o como corte sobre lo que se dice: pantalla completa, de fondo con la persona en un recuadro, o en recuadro. Fuente: mi material, IA o ambos; frecuencia baja / media / alta.
 - **Texto:** subtítulos (4.3), títulos en pantalla, cintillos (nombre / cargo), llamado a la acción final.
 - **Audio:** música (mía o de biblioteca), SFX automáticos (whoosh en cortes, golpes en textos; de mi biblioteca o generados con IA), bajar la música cuando alguien habla, volumen parejo, limpieza de voz y voz en off con IA.
 - **MOTION GRAPHICS** → modo AUTOMÁTICO (Claude decide qué y dónde) o MANUAL (yo describo cada uno y su momento). Motores en el recuadro rosa, cada uno con su ON/OFF: HyperFrames es mi preferido; Remotion u otro, opcional.
 - **IA IMÁGENES** → máximo de imágenes, estilo y uso (b-roll, fondos, portada).
 - **IA VIDEOS** → máximo de clips, duración y modelo.
-- La generación con IA (imágenes, video, SFX, voz) va con **Kie AI**, que es el proveedor que tengo, pero detrás de una capa que permita cambiar de proveedor. Prender IA IMÁGENES, IA VIDEOS, SFX con IA o voz con IA prende Kie AI en el recuadro de motores. Kie AI cambia modelos y precios seguido: léelos de una configuración editable, nunca fijos en el código.
+- La generación con IA (imágenes, video, SFX, voz) va con **Kie AI**, que es el proveedor que tengo (su skill se instala con `npx skills add https://kie.ai`), pero detrás de una capa que permita cambiar de proveedor. Si no hay créditos, la app lo dice claro y sigue sin esa parte. Prender IA IMÁGENES, IA VIDEOS, SFX con IA o voz con IA prende Kie AI en el recuadro de motores. Kie AI cambia modelos y precios seguido: léelos de una configuración editable, nunca fijos en el código.
 
 ### 4.5 INSTRUCCIÓN PARA CLAUDE
 - Caja de texto grande "Describe el video que quieres", con ejemplos que puedo tocar para empezar.
-- Selectores rápidos: formato (9:16, 1:1, 4:5, 16:9), duración objetivo, plataforma y tono.
+- Selectores rápidos: formato (9:16, 1:1, 4:5, 16:9), plataforma y tono.
+- **Duración del video final:** atajos 15 / 30 / 45 / 60 / 90 s, libre o personalizada, con modo automático (Claude decide según el material), aproximada (±15 %) o exacta (±0.5 s). Claude la respeta y la revisión de calidad la verifica.
 - Resumen de lo que Claude va a usar: material, contexto, herramientas prendidas y lo aprendido de mí que aplica.
 - **Tiempo estimado y costo estimado** (Claude + Kie AI): un rango tipo "6–9 min" que se recalcula al prender o apagar cualquier cosa, con desglose por paso. Se recalibra solo con los tiempos reales de cada render.
 - Avisos antes de generar si algo no cuadra (ej. pido 60 s y solo hay 20 s de material).
@@ -202,5 +205,7 @@ Storyboard de Claude: escenas, duración, clips, textos, subtítulos, música, g
 - Una corrección cambia únicamente lo pedido (comprobable comparando las recetas de V1 y V2).
 - Una regla aprendida (ej. una tipografía que corregí) se aplica sola en el siguiente proyecto sin volver a pedirla.
 - Un estilo guardado + material nuevo da un video con la misma tipografía, colores, ritmo, transiciones, subtítulos y gráficos, sin volver a llenar el contexto.
+- Con material que tiene A-roll y B-roll, el análisis distingue las tomas y el B-roll aparece de fondo o como corte sobre la voz.
+- Si pido una duración exacta (p. ej. 30 s), el video final dura eso (±0.5 s); en modo aproximado, ±15 %.
 - El tiempo estimado aparece antes de generar y, después de 5 renders, queda a ±30% del real.
 - Ninguna llave de API llega al navegador.

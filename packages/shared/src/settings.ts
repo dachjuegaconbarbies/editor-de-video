@@ -56,6 +56,16 @@ export const ToolSettings = z.object({
   zooms: toggle({ intensity: z.enum(["sutil", "media", "fuerte"]).default("sutil") }, true),
   reframe: toggle({ mode: z.enum(["auto", "centro", "fondo-desenfocado", "seguir"]).default("auto") }, true),
   colorCorrection: toggle({ look: z.enum(["natural", "calido", "frio", "vivo", "blanco-negro", "cine"]).default("natural") }, false),
+  /** B-roll automático: tomas de apoyo (del material o generadas con IA) de fondo o como corte sobre lo que se dice. */
+  broll: toggle(
+    {
+      source: z.enum(["material", "ia", "ambos"]).default("material"),
+      frequency: z.enum(["baja", "media", "alta"]).default("media"),
+      /** auto = Claude decide; pantalla-completa = corte; fondo = b-roll de fondo con la persona en recuadro; pip = b-roll en recuadro. */
+      layout: z.enum(["auto", "pantalla-completa", "fondo", "pip"]).default("auto"),
+    },
+    true,
+  ),
   // Texto
   titles: toggle({}, true),
   lowerThirds: toggle({ name: z.string().default(""), role: z.string().default("") }, false),
@@ -136,12 +146,15 @@ export const ProjectSettings = z.object({
     .object({
       text: z.string().default(""),
       format: AspectRatio.default("9:16"),
+      /** Duración del video final en segundos (null = que Claude la defina según el material). */
       targetDuration: z.number().min(3).max(1800).nullable().default(null),
+      /** auto = Claude decide; aproximada = ±15 %; exacta = ±0.5 s. */
+      durationMode: z.enum(["auto", "aproximada", "exacta"]).default("auto"),
       platform: Platform.default("tiktok"),
       tone: z.string().default("dinámico"),
       reviewPlan: z.boolean().default(false),
     })
-    .default({ text: "", format: "9:16", targetDuration: null, platform: "tiktok", tone: "dinámico", reviewPlan: false }),
+    .default({ text: "", format: "9:16", targetDuration: null, durationMode: "auto", platform: "tiktok", tone: "dinámico", reviewPlan: false }),
   /** Estilo guardado que se está usando (si arrancó desde un estilo). */
   style: z
     .object({
@@ -164,7 +177,8 @@ export function defaultProjectSettings(): ProjectSettings {
 export function deriveEngines(settings: ProjectSettings): ProjectSettings["engines"] {
   const t = settings.tools;
   const kie =
-    (t.aiImages.enabled || t.aiVideos.enabled || (t.sfx.enabled && t.sfx.source === "ia") || t.voiceover.enabled || (t.music.enabled && t.music.source === "ia"));
+    ((t.broll.enabled && t.broll.source !== "material") ||
+      t.aiImages.enabled || t.aiVideos.enabled || (t.sfx.enabled && t.sfx.source === "ia") || t.voiceover.enabled || (t.music.enabled && t.music.source === "ia"));
   return {
     kie,
     hyperframes: t.motionGraphics.enabled ? t.motionGraphics.engine === "hyperframes" : settings.engines.hyperframes,
@@ -186,6 +200,7 @@ export const TOOL_CATALOG: { key: ToolKey; group: ToolGroup; label: string; shor
   { key: "zooms", group: "edicion", label: "Zooms y punch-ins", short: "Zooms", help: "Acercamientos para dar energía y énfasis." },
   { key: "reframe", group: "edicion", label: "Reencuadre automático", short: "Reencuadre", help: "Adapta horizontal a vertical siguiendo a quien habla." },
   { key: "colorCorrection", group: "edicion", label: "Corrección de color", short: "Color", help: "Ajusta el look del video." },
+  { key: "broll", group: "edicion", label: "B-roll automático", short: "B-roll", help: "Tomas de apoyo de fondo o de corte sobre lo que se dice (de tu material o con IA)." },
   { key: "titles", group: "texto", label: "Títulos en pantalla", short: "Títulos", help: "Frases clave grandes en momentos importantes." },
   { key: "lowerThirds", group: "texto", label: "Cintillos", short: "Cintillos", help: "Nombre y cargo de quien habla." },
   { key: "cta", group: "texto", label: "Llamado a la acción", short: "CTA", help: "Cierre con lo que quieres que haga quien ve." },
