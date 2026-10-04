@@ -7,9 +7,10 @@
  */
 import { z } from "zod";
 import { AssetCategory, Brand, Job, Keyword, PipelineStage, Plan, Project, PublishCopy, StyleInclude, Transcript, Version } from "./entities.js";
+import type { Asset, GlossaryEntry, MemoryRule, Style, StyleVersion } from "./entities.js";
 import { ExportQuality } from "./formats.js";
 import { ProjectSettings } from "./settings.js";
-import type { Estimate } from "./estimator.js";
+import type { Estimate, MaterialSummary } from "./estimator.js";
 
 export const API_PREFIX = "/api/v1";
 
@@ -63,6 +64,10 @@ export const ROUTES = {
   rules: "GET|POST /memory/rules, PATCH|DELETE /memory/rules/:ruleId",
   glossary: "GET|POST /memory/glossary, DELETE /memory/glossary/:entryId",
   metrics: "GET /memory/metrics",
+  // Extras (aditivos): volver a transcribir un archivo, portada de una versión y especificación OpenAPI.
+  retranscribe: "POST /assets/:assetId/transcribe",
+  versionPoster: "GET /versions/:versionId/poster",
+  openapi: "GET /openapi.json (documentación interactiva en /docs)",
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -201,7 +206,61 @@ export interface ProjectDetail {
   pendingPlan: Plan | null;
 }
 
-export interface EstimateResponse extends Estimate {}
+/** Aviso antes de generar (p. ej. "pides 60 s y solo hay 20 s de material"). */
+export interface EstimateWarning {
+  code: string;
+  level: "info" | "aviso";
+  message: string;
+}
+
+export interface EstimateResponse extends Estimate {
+  /** Avisos de cosas que no cuadran (duración vs. material, b-roll sin tomas de apoyo…). */
+  warnings?: EstimateWarning[];
+  /** Resumen del material con el que se calculó (incluye lo detectado como b-roll). */
+  material?: MaterialSummary & {
+    /** Segundos aprovechables como b-roll (fragmentos detectados + tomas completas de b-roll). */
+    brollSeconds: number;
+    aRollAssets: number;
+    bRollAssets: number;
+    /** Segundos de material utilizable en total (video + fotos), para comparar con la duración pedida. */
+    availableSeconds: number;
+  };
+}
+
+// Respuestas de listas: siempre envueltas en un objeto con nombre (permite agregar paginación sin romper).
+export interface ProjectListItem extends Project {
+  assetCount: number;
+  versionCount: number;
+  /** Asset cuya miniatura representa al proyecto (null si aún no hay). */
+  coverAssetId: string | null;
+}
+export interface ProjectsResponse {
+  projects: ProjectListItem[];
+}
+export interface AssetsResponse {
+  assets: Asset[];
+}
+export interface VersionsResponse {
+  versions: Version[];
+}
+export interface StylesResponse {
+  styles: Style[];
+}
+export interface StyleDetail {
+  style: Style;
+  versions: StyleVersion[];
+  /** Trabajo en curso (p. ej. Claude escribiendo la ficha de reglas), si lo hay. */
+  job?: Job | null;
+}
+export interface BrandsResponse {
+  brands: Brand[];
+}
+export interface RulesResponse {
+  rules: MemoryRule[];
+}
+export interface GlossaryResponse {
+  entries: GlossaryEntry[];
+}
 
 export interface CompareResponse {
   a: Version;

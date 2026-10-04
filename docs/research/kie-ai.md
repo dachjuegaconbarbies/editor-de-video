@@ -269,7 +269,7 @@ curl -s -X POST https://api.kie.ai/api/v1/generate/sounds \
 
 ## 6. Parámetros clave por modelo
 
-Leyenda: **T2I/T2V** = texto a imagen o video, **I2V** = imagen a video, **ref** = imágenes de referencia, **neg** = negative prompt. Los esquemas salen de [PKG:apicity] y se cruzaron con [PKG:kie-mcp] y [PKG:uxdata]. Los conflictos se marcan con ⚠. Para cualquier modelo, la verdad final es `GET /api/v1/models/{model}/schema`.
+Leyenda: **T2I/T2V** = texto a imagen o video, **I2V** = imagen a video, **ref** = imágenes de referencia, **neg** = negative prompt. Los esquemas salen de [PKG:apicity] y se cruzaron con [PKG:kie-mcp] y [PKG:uxdata]. **(!) = conflicto entre fuentes.** Para cualquier modelo, la verdad final es `GET /api/v1/models/{model}/schema`.
 
 ### 6.1 Imagen (todos en Market)
 
@@ -278,9 +278,9 @@ Leyenda: **T2I/T2V** = texto a imagen o video, **I2V** = imagen a video, **ref**
 | `nano-banana-2` | 1:1, 1:4, 1:8, 2:3, 3:2, 3:4, 4:1, 4:3, 4:5, 5:4, 8:1, 9:16, 16:9, 21:9, auto (por defecto auto) | `resolution` 1K/2K/4K (1K) | no / no | `image_input[]` ≤ 14 | prompt ≤ 20000; `output_format` png/jpg; `google_search` (bool) [uxdata] |
 | `nano-banana-2-lite` | igual que nano-banana-2 | n/a | no / no | `image_urls[]` ≤ 10 | el más barato de la familia |
 | `nano-banana-pro` | 1:1, 2:3, 3:2, 3:4, 4:3, 4:5, 5:4, 9:16, 16:9, 21:9, auto | 1K/2K/4K | no / no | `image_input[]` | calidad alta para portadas |
-| `google/nano-banana` / `google/nano-banana-edit` | 1:1, 9:16, 16:9, 3:4, 4:3, 3:2, 2:3, 5:4, 4:5, 21:9, auto | n/a | no / no | edit: `image_urls[]` 1–10 (obligatorio) | ⚠ kie-mcp manda `image_size` (campo antiguo, todavía aceptado) |
+| `google/nano-banana` / `google/nano-banana-edit` | 1:1, 9:16, 16:9, 3:4, 4:3, 3:2, 2:3, 5:4, 4:5, 21:9, auto | n/a | no / no | edit: `image_urls[]` 1–10 (obligatorio) | (!) kie-mcp manda `image_size` (campo antiguo, todavía aceptado) |
 | `google/imagen4-fast` | 1:1, 16:9, 9:16, 3:4, 4:3, auto (16:9) | n/a | `seed` **entero** / `negative_prompt` ≤ 5000 | no | buena reproducibilidad (seed) |
-| `google/imagen4`, `google/imagen4-ultra` | igual (1:1) | n/a | `seed` **string** ≤ 500 / `negative_prompt` | no | ⚠ el tipo de seed difiere de fast |
+| `google/imagen4`, `google/imagen4-ultra` | igual (1:1) | n/a | `seed` **string** ≤ 500 / `negative_prompt` | no | (!) el tipo de seed difiere de fast |
 | `seedream/4.5-text-to-image`, `seedream/5-lite-text-to-image` | 1:1, 4:3, 3:4, 16:9, 9:16, 2:3, 3:2, 21:9 | `quality` basic (2K) / high (4K), **obligatorio** | no / no | edit: `image_urls[]` ≤ 14 | prompt 3–3000 |
 | `gpt-image-2-text-to-image` | auto, 1:1, 3:2, 2:3, 4:3, 3:4, 5:4, 4:5, 9:16, 16:9, 2:1, 1:2, 3:1, 1:3, 21:9, 9:21 | 1K/2K/4K (auto solo 1K; 1:1 sin 4K) | no / no | i2i: `input_urls[]` ≤ 16 | el mejor para **texto dentro de la imagen** |
 | `gpt-image-2-5-flare-text-to-image` | auto, 1:1, 3:2, 2:3, 4:3, 3:4, 16:9, 9:16, 21:9, 27:16, 16:27, 9:8, 8:9 | 1K/2K/4K (1K) | no / no | i2i: `input_urls[]` | `background` transparent/opaque/auto (PNG con alfa: útil para overlays) |
@@ -292,20 +292,20 @@ Leyenda: **T2I/T2V** = texto a imagen o video, **I2V** = imagen a video, **ref**
 
 | Modelo | API | Aspect ratio | Duración | Resolución | Seed / neg | Referencias / frames | Audio |
 |---|---|---|---|---|---|---|---|
-| `veo3` / `veo3_fast` / `veo3_lite` | **veo** | `aspect_ratio` 16:9, 9:16, Auto ⚠ | `duration` 4/6/8 | `resolution` 720p/1080p/4k | `seeds` / no | `imageUrls[]` + `generationType` | nativo |
+| `veo3` / `veo3_fast` / `veo3_lite` | **veo** | `aspect_ratio` 16:9, 9:16, Auto (!) | `duration` 4/6/8 | `resolution` 720p/1080p/4k | `seeds` / no | `imageUrls[]` + `generationType` | nativo |
 | `bytedance/seedance-2-mini` | market | 16:9, 4:3, 1:1, 3:4, 9:16, 21:9, adaptive (16:9) | `duration` **entero** 4–15 (5) | 480p/720p (720p) | no / no | `first_frame_url`, `last_frame_url`, `reference_image_urls[]`, `reference_video_urls[]` ≤ 3 (≤ 15 s en total), `reference_audio_urls[]` ≤ 3 | `generate_audio` (true por defecto en el esquema) |
-| `bytedance/seedance-2`, `-2-fast`, `-2-5` | market | igual | 2/2-fast: 4–15; **2.5: 4–30** | 480p/720p (2.5 añade 1080p [uxdata]) | no | igual. ⚠ En 2 y 2-fast las referencias **no se combinan** con first/last frame | `generate_audio` |
-| `bytedance/seedance-1.5-pro` | market | 1:1, 4:3, 3:4, 16:9, 9:16, 21:9 (obligatorio) | ⚠ entero 4–12 [apicity] frente a "8"/"10" [kie-mcp] | 480p/720p/1080p | no | `input_urls[]` 0–2 | `generate_audio` |
+| `bytedance/seedance-2`, `-2-fast`, `-2-5` | market | igual | 2/2-fast: 4–15; **2.5: 4–30** | 480p/720p (2.5 añade 1080p [uxdata]) | no | igual. (!) En 2 y 2-fast las referencias **no se combinan** con first/last frame | `generate_audio` |
+| `bytedance/seedance-1.5-pro` | market | 1:1, 4:3, 3:4, 16:9, 9:16, 21:9 (obligatorio) | (!) entero 4–12 [apicity] frente a "8"/"10" [kie-mcp] | 480p/720p/1080p | no | `input_urls[]` 0–2 | `generate_audio` |
 | `grok-imagine/text-to-video` | market | 2:3, 3:2, 1:1, 16:9, 9:16 | **entero 6–30** (6) | 480p/720p/1080p (480p) | no | i2v: `image_urls[]` ≤ 7 (1 a 1080p) | sí |
 | `kling-3.0/video` | market | 16:9, 9:16, 1:1 | `duration` **string** "3"…"15" (obligatorio) | `mode` std/pro/4K (obligatorio) | no | `image_urls[]`, `kling_elements[]` (≤ 3 sujetos, 2–4 imágenes cada uno, referenciados como `[nombre]` en el prompt) | `sound` |
 | `kling-2.6/text-to-video` / `image-to-video` | market | 16:9, 9:16, 1:1 (obligatorio en T2V) | string "5"/"10" | n/a | no | i2v: `image_urls[]` exactamente 1 | `sound` (obligatorio) |
 | `kling/v2-5-turbo-text-to-video-pro` | market | 16:9, 9:16, 1:1 | "5"/"10" | n/a | no / **`negative_prompt`** ≤ 2500, `cfg_scale` 0–1 | i2v aparte | no |
 | `hailuo/2-3-image-to-video-standard` (y `-pro`) | market | (de la imagen) | string "6"/"10" (10 s no a 1080P) | 768P/1080P | no | `image_url` (obligatorio) | no |
 | `hailuo/02-text-to-video-standard` | market | n/a | "6"/"10" | n/a | no | `end_image_url` en I2V | `prompt_optimizer` |
-| `wan/2-6-text-to-video` / `image-to-video` | market | ⚠ apicity no tiene aspect ratio en T2V; kie-mcp manda `aspect_ratio` | string "5"/"10"/"15" | 720p/1080p (1080p) | no | i2v: `image_urls[]` exactamente 1 | `multi_shots` |
-| `wan/2-7-text-to-video` | market | ⚠ `ratio` [apicity] frente a `aspect_ratio` [kie-mcp] | entero 2–15 (5) [apicity] / "5","10" [kie-mcp] | 720p/1080p | **`seed`** / **`negative_prompt`** ≤ 500 | `audio_url` | sí |
+| `wan/2-6-text-to-video` / `image-to-video` | market | (!) apicity no tiene aspect ratio en T2V; kie-mcp manda `aspect_ratio` | string "5"/"10"/"15" | 720p/1080p (1080p) | no | i2v: `image_urls[]` exactamente 1 | `multi_shots` |
+| `wan/2-7-text-to-video` | market | (!) `ratio` [apicity] frente a `aspect_ratio` [kie-mcp] | entero 2–15 (5) [apicity] / "5","10" [kie-mcp] | 720p/1080p | **`seed`** / **`negative_prompt`** ≤ 500 | `audio_url` | sí |
 | `wan/3-0-video` (y `-prime`) | market | adaptive, 16:9, 9:16, 1:1 | 2–30 o -1 [uxdata] / 3–15 [kie-mcp] | 480P/720P/1080P | `seed` | `first_frame_url`, `last_frame_url`, `reference_*_urls[]` | `audio` |
-| `minimax-h3/text-to-video` (y i2v/r2v) | market | 16:9, 9:16, 1:1, adaptive | 3–10 o 4–15 ⚠ | 768P/2K | no | r2v: `reference_image_urls[]` 1–9 | estéreo |
+| `minimax-h3/text-to-video` (y i2v/r2v) | market | 16:9, 9:16, 1:1, adaptive | 3–10 o 4–15 (!) | 768P/2K | no | r2v: `reference_image_urls[]` 1–9 | estéreo |
 | Runway | **runway** | `aspectRatio` | 5/10 | `quality` 720p/1080p | no | `imageUrl` | no |
 
 ### 6.3 Audio
@@ -334,24 +334,24 @@ USD = créditos × 0.005. Cuando solo se conoce el mínimo de [PRICE-API], los d
 
 | Modelo | Créditos | USD | Fuente | Confianza |
 |---|---|---|---|---|
-| `z-image` | 0.8 | 0.004 | [PRICE-API]; ⚠ kie-mcp: 3 | baja |
+| `z-image` | 0.8 | 0.004 | [PRICE-API]; (!) kie-mcp: 3 | baja |
 | `recraft/remove-background` | 1 | 0.005 | [PRICE-API]; kie-mcp medido 1.0 | alta |
-| `ideogram/v3-text-to-image` | 3.5 (mínimo, 3 tiers) | 0.0175 | [PRICE-API]; ⚠ kie-mcp: 5 | media |
+| `ideogram/v3-text-to-image` | 3.5 (mínimo, 3 tiers) | 0.0175 | [PRICE-API]; (!) kie-mcp: 5 | media |
 | `nano-banana-2-lite` | 4 | 0.02 | [PRICE-API] + kie-mcp medido 4.00 (2026-07-02) | alta |
 | `google/nano-banana`, `google/nano-banana-edit` | 4 | 0.02 | [PRICE-API] | alta |
 | `google/imagen4-fast` | 4 | 0.02 | [PRICE-API] + kie-mcp medido 4.0 (2026-09-22) | alta |
 | `grok-imagine-image-2-0/text-to-image` | 4 | 0.02 | [PRICE-API] + kie-mcp medido 4.0 | alta |
 | `flux-2/pro-text-to-image` | 5 (1K; 2K NO VERIFICADO) | 0.025 | [PRICE-API] | media |
-| `seedream/5-lite-text-to-image` | 5.5 | 0.0275 | [PRICE-API]; ⚠ kie-mcp: 5 | media |
-| `gpt-image-2-text-to-image` | 6 (mínimo, 3 tiers) | 0.03 | [PRICE-API]; ⚠ kie-mcp: 8 | media |
+| `seedream/5-lite-text-to-image` | 5.5 | 0.0275 | [PRICE-API]; (!) kie-mcp: 5 | media |
+| `gpt-image-2-text-to-image` | 6 (mínimo, 3 tiers) | 0.03 | [PRICE-API]; (!) kie-mcp: 8 | media |
 | `gpt-image-2-5-flare-text-to-image` | 6 / 10 / 16 (1K/2K/4K) | 0.03 / 0.05 / 0.08 | kie-mcp ("kie published", 2026-09-22) + [PRICE-API] mínimo 6 | media |
 | GPT-4o Image (`4o-image-api`) | 6 | 0.03 | [PRICE-API] | media |
-| `seedream/4.5-text-to-image` | 6.5 | 0.0325 | [PRICE-API]; ⚠ kie-mcp: 5 | media |
+| `seedream/4.5-text-to-image` | 6.5 | 0.0325 | [PRICE-API]; (!) kie-mcp: 5 | media |
 | `seedream/5-pro-text-to-image` | 7 (1K) / 14 (2K) | 0.035 / 0.07 | kie-mcp (publicado, 2026-08-26) + [PRICE-API] mínimo 7 | media |
 | `nano-banana-2` | **8 / 12 / 18** (1K/2K/4K) | 0.04 / 0.06 / 0.09 | [PRICE-API] mínimo 8 + [PKG:uxdata] (lista 2026-08-30) | alta |
 | `google/imagen4` / `imagen4-ultra` | 8 / 12 | 0.04 / 0.06 | [PRICE-API] + kie-mcp | alta |
 | `nano-banana-pro` | 18 (24 en 4K NO VERIFICADO) | 0.09 (0.12) | [PRICE-API] mínimo 18, 2 tiers; kie-mcp: 24 | media |
-| `flux-kontext-api` (dedicada) | 5 mínimo (2 tiers) | 0.025 | [PRICE-API]; ⚠ kie-mcp: 50 (pro) y 100 (max), una diferencia enorme | baja |
+| `flux-kontext-api` (dedicada) | 5 mínimo (2 tiers) | 0.025 | [PRICE-API]; (!) kie-mcp: 50 (pro) y 100 (max), una diferencia enorme | baja |
 
 **Video**
 
@@ -364,19 +364,19 @@ USD = créditos × 0.005. Cuando solo se conoce el mínimo de [PRICE-API], los d
 | `wan/3-0-video` | 8 / 16 / 32 por s (480P/720P/1080P). Se cobra (duración de entrada + salida) | 0.04 / 0.08 / 0.16 por s | [PKG:uxdata] + kie-mcp + [PRICE-API] mínimo 8 | media |
 | `minimax-h3/*` | 8/s (768P), 13/s (2K); +4 por imagen de referencia después de la 5.ª | 0.04 / 0.065 por s | [PKG:uxdata] + kie-mcp (medido 6 s = 48) + [PRICE-API] | alta |
 | `bytedance/seedance-2` | 11.5/s mínimo (8 tiers) | 0.0575/s | [PRICE-API] | baja (tiers) |
-| `kling-3.0/video` | 14/s mínimo (6 tiers) | 0.07/s | [PRICE-API]; ⚠ kie-mcp: 12 | baja |
+| `kling-3.0/video` | 14/s mínimo (6 tiers) | 0.07/s | [PRICE-API]; (!) kie-mcp: 12 | baja |
 | `kling-3.0-omni/*` | 720p 14 / 18 / 20 (mudo / audio / video de entrada); 1080p 18 / 23 / 27; 4k 67 por s | 0.07–0.335 por s | [PKG:uxdata] + kie-mcp | media |
-| `wan/2-7-text-to-video` | 16/s mínimo (2 tiers) | 0.08/s | [PRICE-API]; ⚠ kie-mcp: 5 | media |
+| `wan/2-7-text-to-video` | 16/s mínimo (2 tiers) | 0.08/s | [PRICE-API]; (!) kie-mcp: 5 | media |
 | `bytedance/seedance-2-5` | 28 / 63 / 114 por s (480p/720p/1080p); 17 / 38 / 68.5 con video de entrada. **1080p tenía promo hasta el 2026-09-17** | 0.14 / 0.315 / 0.57 por s | [PKG:uxdata] + kie-mcp (480p medido: 4 s = 112) + [PRICE-API] mínimo 17 | media |
 | `kling/v3-turbo-*` | 18 / 22.5 por s (720p/1080p) | 0.09 / 0.1125 por s | kie-mcp + [PRICE-API] mínimo 18 | media |
 | `happyhorse-1-1/*` | 22.5 / 29 por s (720p/1080p) | 0.1125 / 0.145 por s | kie-mcp + [PRICE-API] | media |
 | Runway | 12 por video (5 s 720p, mínimo de 6 tiers) | 0.06 | [PRICE-API] + kie-mcp | media |
 | `hailuo/2-3-image-to-video-standard` | 30 por video mínimo (3 tiers) | 0.15 | [PRICE-API] | media |
-| `hailuo/02-text-to-video-standard` | 30 por video mínimo (2 tiers) | 0.15 | [PRICE-API]; ⚠ kie-mcp: 4/s | media |
+| `hailuo/02-text-to-video-standard` | 30 por video mínimo (2 tiers) | 0.15 | [PRICE-API]; (!) kie-mcp: 4/s | media |
 | `veo3_lite` | **unos 30 por clip de 8 s** | 0.15 | kie-mcp (medido 2026-06-01) = [PRICE-API] mínimo "veo-3-1" 30 (24 tiers) | media |
 | `kling-2.6/text-to-video` | 55 por video mínimo (5 s; 4 tiers) | 0.275 | [PRICE-API] | media |
 | `hailuo/02-*-pro` | 57 por video | 0.285 | [PRICE-API] | media |
-| `wan/2-6-text-to-video` / `image-to-video` | 70 por video mínimo (6 tiers) | 0.35 | [PRICE-API]; ⚠ kie-mcp: 4/s | media |
+| `wan/2-6-text-to-video` / `image-to-video` | 70 por video mínimo (6 tiers) | 0.35 | [PRICE-API]; (!) kie-mcp: 4/s | media |
 | `veo3_fast` | **60–168 por clip de 8 s (NO VERIFICADO)** | 0.30–0.84 | kie-mcp midió 168 (2026-06-01); las reseñas dicen 60 | baja |
 | `veo3` (Quality) | **250–400 por clip de 8 s (NO VERIFICADO)** | 1.25–2.00 | kie-mcp midió 250; las reseñas dicen 400 | baja |
 | Veo → 1080p / 4K | 5 / unos 120 | 0.025 / 0.60 | [PRICE-API] (`veo/get-1080p-video` = 5) / kie-mcp (4K medido) | media / baja |
@@ -386,9 +386,9 @@ USD = créditos × 0.005. Cuando solo se conoce el mínimo de [PRICE-API], los d
 
 | Modelo | Créditos | USD | Fuente | Confianza |
 |---|---|---|---|---|
-| Suno música (`/api/v1/generate`) | 12 por petición (unas 2 pistas) | 0.06 | [PRICE-API] (`ai-music-api/generate`, `suno-api`); ⚠ kie-mcp: 10 | media |
+| Suno música (`/api/v1/generate`) | 12 por petición (unas 2 pistas) | 0.06 | [PRICE-API] (`ai-music-api/generate`, `suno-api`); (!) kie-mcp: 10 | media |
 | Suno extend / add-instrumental / upload-cover | 12 | 0.06 | [PRICE-API] | media |
-| Suno Sounds (SFX) | 2.5 por petición | 0.0125 | [PRICE-API]; ⚠ kie-mcp: 5 | baja |
+| Suno Sounds (SFX) | 2.5 por petición | 0.0125 | [PRICE-API]; (!) kie-mcp: 5 | baja |
 | Suno convert-to-wav / timestamped-lyrics / music-video | 0.4 / 0.5 / 2 | 0.002 / 0.0025 / 0.01 | [PRICE-API] | media |
 | ElevenLabs Turbo 2.5 | 6 por cada 1000 caracteres (redondeo hacia arriba) | 0.03 | [PRICE-API] + kie-mcp (35/150/600 caracteres → 6; 1500 → 12) | alta |
 | ElevenLabs Multilingual v2 | 12 por cada 1000 caracteres (redondeo hacia arriba) | 0.06 | [PRICE-API] + kie-mcp (medido 2026-06-11) | alta |
@@ -1347,20 +1347,20 @@ const mr = await kie.waitFor("suno", m, { intervalMs: 10_000, timeoutMs: 15 * 60
 
 | Prueba | Comando | Resultado |
 |---|---|---|
-| Alcance de red a Kie | `curl https://api.kie.ai/api/v1/chat/credit`, `curl https://docs.kie.ai/` | ❌ `CONNECT tunnel failed, response 403` (política del proxy) |
-| WebFetch a la documentación | `WebFetch https://docs.kie.ai/`, `https://kie.ai/pricing` | ❌ `EGRESS_BLOCKED` |
-| WebSearch (extended) sobre docs.kie.ai | 12 búsquedas | ✅ Resúmenes de las páginas oficiales: auth, códigos, estados, créditos, upload, download-url, webhook, Veo, Suno, models |
-| Código fuente de clientes | `npm pack` de 13 paquetes (kie-mcp, @apicity/kie, @nodetool-ai/kie-nodes, @uxdata-co/kie, @babylonjs-toolkit/kie, dainami-kie-mcp, @ulmeanuadrian/kie-mcp, gcv-kie, kie-media-cli, velsvisual, @felores/*, dsh-kie-credit-monitor) | ✅ Leídos; volcado de registros y esquemas con scripts de Node |
-| Instalación SDK | `npm install @apicity/kie@0.13.2 typescript@5 tsx @types/node@22` | ✅ |
-| Tipado del adaptador | `npx tsc -p .` (`strict`, `noUncheckedIndexedAccess`) sobre `kie-client.ts`, `mock-test.ts`, `estimate.ts`, `build-request.ts` | ✅ exit 0 |
-| Adaptador contra servidor HTTP simulado | `npx tsx src/mock-test.ts` | ✅ Pasan: header `Bearer`; cuerpo `{model,input}`; **reintento ante HTTP 200 + code 429**; polling `waiting → (respuesta no JSON tolerada) → generating → success`; `resultJson` string → `resultUrls`; `creditsConsumed`; **402 sin reintento**; `chat/credit`; subida multipart (`file`, `uploadPath`) → `downloadUrl`; normalizadores Veo (`successFlag`) y Suno (`audio_url`/`audioUrl`); firma de webhook idéntica a `verifyKieWebhookSignature` de `@apicity/kie` |
-| Configuración | `npx tsx src/estimate.ts` | ✅ JSON válido, 20 modelos, ids únicos, cada `default` mapeado en `params`, `estimate` = cálculo desde `pricing` (créditos y USD), defaults por tipo válidos; casos Seedance 480p con video (2.4 × 7) y TTS de 1500 caracteres (24) |
-| buildRequest | `npx tsx src/build-request.ts` | ✅ nano-banana-2 (seed ignorado, refs → `image_input`), Kling `duration` → string, Veo cuerpo plano con `seeds`, Suno con `callBackUrl`, Sounds → `soundLoop`; rechaza duración fuera de rango, modelo deshabilitado y prompt demasiado largo |
+| Alcance de red a Kie | `curl https://api.kie.ai/api/v1/chat/credit`, `curl https://docs.kie.ai/` | FALLA `CONNECT tunnel failed, response 403` (política del proxy) |
+| WebFetch a la documentación | `WebFetch https://docs.kie.ai/`, `https://kie.ai/pricing` | FALLA `EGRESS_BLOCKED` |
+| WebSearch (extended) sobre docs.kie.ai | 12 búsquedas | OK Resúmenes de las páginas oficiales: auth, códigos, estados, créditos, upload, download-url, webhook, Veo, Suno, models |
+| Código fuente de clientes | `npm pack` de 13 paquetes (kie-mcp, @apicity/kie, @nodetool-ai/kie-nodes, @uxdata-co/kie, @babylonjs-toolkit/kie, dainami-kie-mcp, @ulmeanuadrian/kie-mcp, gcv-kie, kie-media-cli, velsvisual, @felores/*, dsh-kie-credit-monitor) | OK Leídos; volcado de registros y esquemas con scripts de Node |
+| Instalación SDK | `npm install @apicity/kie@0.13.2 typescript@5 tsx @types/node@22` | OK |
+| Tipado del adaptador | `npx tsc -p .` (`strict`, `noUncheckedIndexedAccess`) sobre `kie-client.ts`, `mock-test.ts`, `estimate.ts`, `build-request.ts` | OK exit 0 |
+| Adaptador contra servidor HTTP simulado | `npx tsx src/mock-test.ts` | OK Pasan: header `Bearer`; cuerpo `{model,input}`; **reintento ante HTTP 200 + code 429**; polling `waiting → (respuesta no JSON tolerada) → generating → success`; `resultJson` string → `resultUrls`; `creditsConsumed`; **402 sin reintento**; `chat/credit`; subida multipart (`file`, `uploadPath`) → `downloadUrl`; normalizadores Veo (`successFlag`) y Suno (`audio_url`/`audioUrl`); firma de webhook idéntica a `verifyKieWebhookSignature` de `@apicity/kie` |
+| Configuración | `npx tsx src/estimate.ts` | OK JSON válido, 20 modelos, ids únicos, cada `default` mapeado en `params`, `estimate` = cálculo desde `pricing` (créditos y USD), defaults por tipo válidos; casos Seedance 480p con video (2.4 × 7) y TTS de 1500 caracteres (24) |
+| buildRequest | `npx tsx src/build-request.ts` | OK nano-banana-2 (seed ignorado, refs → `image_input`), Kling `duration` → string, Veo cuerpo plano con `seeds`, Suno con `callBackUrl`, Sounds → `soundLoop`; rechaza duración fuera de rango, modelo deshabilitado y prompt demasiado largo |
 
 **Lo que NO se pudo probar, y por qué:**
 
 - **Ninguna llamada real a Kie** (ni crear, ni consultar, ni subir, ni saldo): no hay salida de red a `*.kie.ai` y no hay `KIE_API_KEY`. Las formas de respuesta vienen de la documentación (vía resúmenes de búsqueda) y de clientes de terceros, no de respuestas que yo haya visto.
-- **Precios actuales al 2026-10-04:** el dato más reciente es el snapshot del endpoint de precios del **2026-09-25** más las tablas de kie-mcp del 2026-09-28. Los precios con ⚠ o confianza "baja" pueden haber cambiado.
+- **Precios actuales al 2026-10-04:** el dato más reciente es el snapshot del endpoint de precios del **2026-09-25** más las tablas de kie-mcp del 2026-09-28. Los precios con (!) o confianza "baja" pueden haber cambiado.
 - **HTML crudo de la documentación:** solo se vieron resúmenes, que pueden omitir campos.
 - Callbacks reales, formato de `timestamps` de ElevenLabs, si existe `creditsConsumed` en Veo y Suno, tiempos reales de generación y vida útil exacta de las URLs de Suno.
 
