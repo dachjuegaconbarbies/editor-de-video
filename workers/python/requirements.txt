@@ -1,0 +1,6 @@
+# Worker de Python del autoeditor (transcripción local y rostros).
+# Se instala con `pnpm instalar` en workers/python/.venv.
+faster-whisper>=1.1.0,<2
+# OpenCV 5 quitó CascadeClassifier y los XML Haar: fijamos la serie 4.x (trae cv2.data.haarcascades).
+opencv-python-headless>=4.8,<5
+numpy>=1.24
