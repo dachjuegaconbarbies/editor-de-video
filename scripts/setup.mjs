@@ -196,6 +196,19 @@ if (existsSync(hfBin)) {
   const v = ok(hfBin, ["--version"]);
   if (v) c.ok(`hyperframes ${v.split("\n")[0]}`);
   else c.warn("hyperframes instalado pero no responde; corre: npx hyperframes doctor");
+  const hfEnv = { ...process.env, HYPERFRAMES_NO_TELEMETRY: "1", HYPERFRAMES_NO_UPDATE_CHECK: "1", HYPERFRAMES_NO_AUTO_INSTALL: "1" };
+  if (e2.HYPERFRAMES_BROWSER_PATH) {
+    c.ok(`Navegador para HyperFrames: ${e2.HYPERFRAMES_BROWSER_PATH}`);
+  } else {
+    const path0 = run(hfBin, ["browser", "path"], { env: hfEnv });
+    if (path0.status === 0 && (path0.stdout || "").trim()) c.ok("Navegador para HyperFrames listo (chrome-headless-shell)");
+    else if (!CHECK_ONLY) {
+      c.info("Descargando el navegador que usa HyperFrames para renderizar (una sola vez, ~120 MB)…");
+      const r = run(hfBin, ["browser", "ensure"], { env: hfEnv, stdio: "inherit" });
+      if (r.status === 0) c.ok("Navegador para HyperFrames instalado");
+      else c.warn("No se pudo descargar el navegador de HyperFrames; los motion graphics usarán el motor básico (ffmpeg).");
+    } else c.warn("Falta el navegador de HyperFrames (pnpm instalar lo descarga).");
+  }
 } else c.warn("hyperframes no está instalado (corre pnpm install).");
 
 if (WITH_E2E && !CHECK_ONLY) {
