@@ -38,6 +38,8 @@ interface Candidate {
 const CTA_VERBS = new Set(["siguenos", "sigueme", "suscribete", "comenta", "comparte", "descarga", "visita", "escribenos", "registrate", "compra"]);
 
 const stem = (n: string) => (n.length > 4 && n.endsWith("es") ? n.slice(0, -2) : n.length > 3 && n.endsWith("s") ? n.slice(0, -1) : n);
+/** Infinitivos y verbos con pronombre pegado ("reutilizarlo", "editar") no suelen ser buenas palabras clave. */
+const isVerbLike = (n: string) => /(ar|er|ir)(lo|la|le|los|las|les|se|nos|me|te)?$/.test(n) && n.length >= 5;
 const isContent = (w: TWord) => w.norm.length >= 4 && !STOPWORDS_ES.has(w.norm) && !isNumberToken(w.text) && !CTA_VERBS.has(w.norm);
 
 export function keywordId(text: string): string {
@@ -133,23 +135,34 @@ export function detectKeywordsHeuristic(input: KeywordInput): { keywords: Keywor
     }
   }
 
-  for (const [key, f] of freq) {
-    const inInstruction = instruction.includes(` ${key}`);
-    if (f.count >= 2 || f.len >= 8 || inInstruction) {
-      add(f.display, "tema", 1 + f.count * 1.5 + (f.len >= 8 ? 1 : 0) + (inInstruction ? 2 : 0));
-    }
-  }
-
-  // 6) Pares de palabras de contenido seguidas ("palabras clave", "editar videos").
+  // 6) Pares de palabras de contenido seguidas ("palabras clave", "editar videos"): restan a sus palabras sueltas.
+  const inPairs = new Map<string, number>();
   for (const words of byAsset.values()) {
     let k = 0;
     while (k < words.length - 1) {
       const a = words[k]!;
       const b = words[k + 1]!;
-      if (isContent(a) && isContent(b) && !endsSentence(a.text) && !/,$/.test(a.text) && b.start - a.end < 0.4) {
-        add(`${stripPunctuation(a.text).toLocaleLowerCase("es")} ${stripPunctuation(b.text).toLocaleLowerCase("es")}`, "tema", 2.5);
+      if (isContent(a) && isContent(b) && !endsSentence(a.text) && !/,$/.test(a.text) && b.start - a.end < 0.4 && !isVerbLike(a.norm)) {
+        add(`${stripPunctuation(a.text).toLocaleLowerCase("es")} ${stripPunctuation(b.text).toLocaleLowerCase("es")}`, "tema", 3);
+        for (const w of [a, b]) inPairs.set(stem(w.norm), (inPairs.get(stem(w.norm)) ?? 0) + 1);
         k += 2;
       } else k++;
+    }
+  }
+
+  // Temas sueltos: frecuencia + largo (graduado) + instrucción; se castigan verbos/participios y las palabras
+  // que solo aparecen dentro del llamado a la acción ("Síguenos para más consejos").
+  const ctaEarly = findCtaPhrase(allPhrases);
+  const ctaWords = new Set(ctaEarly ? ctaEarly.phrase.words.map((w) => stem(w.norm)) : []);
+  for (const [key, f] of freq) {
+    const inInstruction = instruction.includes(` ${key}`);
+    if (f.count >= 2 || f.len >= 8 || inInstruction) {
+      let score = 1 + f.count * 1.5 + (f.len >= 7 ? (f.len - 6) * 0.25 : 0) + (inInstruction ? 2 : 0);
+      if (isVerbLike(key)) score -= 1.5;
+      else if (/(ad|id)[oa]s?$/.test(key)) score -= 0.75;
+      if (ctaWords.has(key) && f.count < 2) score -= 1;
+      score -= (inPairs.get(key) ?? 0) * 1;
+      add(f.display, "tema", score);
     }
   }
 

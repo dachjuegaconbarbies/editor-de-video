@@ -183,13 +183,14 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     listTranscripts: async (projectId) => unwrap<Transcript[]>(await request("GET", `/projects/${enc(projectId)}/transcripts`), "transcripts"),
     updateTranscriptWords: async (transcriptId, body: UpdateTranscriptWordsBody) =>
       unwrap<Transcript>(await request("PATCH", `/transcripts/${enc(transcriptId)}/words`, body), "transcript"),
+    retranscribe: async (assetId) => unwrap<Job>(await request("POST", `/assets/${enc(assetId)}/transcribe`, {}), "job"),
     getKeywords: async (projectId) => normalizeKeywords(await request("GET", `/projects/${enc(projectId)}/keywords`)),
     putKeywords: async (projectId, keywords: Keyword[]) =>
       normalizeKeywords(await request("PUT", `/projects/${enc(projectId)}/keywords`, { keywords })).keywords,
     detectKeywords: async (projectId) => normalizeKeywords(await request("POST", `/projects/${enc(projectId)}/keywords/detect`, {})),
 
     // ---------------------------------------------------------------- Generar, plan y trabajos
-    estimate: async (projectId) => unwrap<EstimateResponse>(await request("POST", `/projects/${enc(projectId)}/estimate`, {}), "estimate"),
+    estimate: async (projectId, settings) => unwrap<EstimateResponse>(await request("POST", `/projects/${enc(projectId)}/estimate`, settings ? { settings } : {}), "estimate"),
     generate: async (projectId) => unwrap<Job>(await request("POST", `/projects/${enc(projectId)}/generate`, {}), "job"),
     getPlan: async (planId) => unwrap<Plan>(await request("GET", `/plans/${enc(planId)}`), "plan"),
     approvePlan: async (planId) => unwrap<Job>(await request("POST", `/plans/${enc(planId)}/approve`, {}), "job"),

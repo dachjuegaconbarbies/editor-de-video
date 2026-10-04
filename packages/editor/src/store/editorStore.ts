@@ -59,6 +59,14 @@ export interface RuleSuggestion {
   correction: string;
 }
 
+/** Pregunta aclaratoria del editor antes de aplicar una corrección ambigua (no se renderiza nada aún). */
+export interface ClarifyState {
+  versionId: string;
+  question: string;
+  correction: string;
+  at: number | null;
+}
+
 /** Qué se muestra en la vista enfocada (pantalla completa). */
 export interface FocusState {
   stage: StageId;
@@ -103,6 +111,14 @@ export interface EditorData {
   selectedTool: string | null;
   /** Pedido al lienzo para encuadrar una etapa (o "todo"); `n` cambia en cada pedido. */
   viewRequest: { target: StageId | "todo"; n: number } | null;
+  /** Comparar dos versiones lado a lado (ids de versión). */
+  compare: { a: string; b: string } | null;
+  /** Pregunta aclaratoria pendiente de una corrección. */
+  clarify: ClarifyState | null;
+  /** Con un estilo, el diagrama arranca corto; true = mostrar todas las etapas. */
+  fullDiagram: boolean;
+  /** Último trabajo de generación/corrección que falló (para mostrar el error y "Reintentar"). */
+  failedJobId: string | null;
 }
 
 export interface EditorActions {
@@ -165,6 +181,10 @@ export function initialData(overrides: Partial<EditorData> = {}): EditorData {
     ruleSuggestion: null,
     selectedTool: null,
     viewRequest: null,
+    compare: null,
+    clarify: null,
+    fullDiagram: false,
+    failedJobId: null,
     ...overrides,
   };
 }

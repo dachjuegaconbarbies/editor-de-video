@@ -2,17 +2,23 @@
  * Etapa MATERIAL (obligatoria).
  * - Material en crudo: videos (marcables "debe aparecer"/"opcional"), fotos y notas de voz.
  * - Elementos del video: música, efectos, imágenes/gráficos/logos y videos que deben aparecer.
- * El análisis (escenas, voz, A-roll/B-roll) arranca solo al subir.
+ * Zonas de arrastre por categoría, botón "Elegir archivos" y pegar (Ctrl+V). Subida con progreso
+ * real, cancelar y reintentar. El análisis (escenas, voz, A-roll/B-roll) arranca solo al subir.
  */
 import type { Asset, AssetCategory } from "@autoeditor/shared";
 import clsx from "clsx";
-import { AudioLines, Film, Image as ImageIcon, Music, Shapes, Sparkles, Star, Upload } from "lucide-react";
-import type { ReactNode } from "react";
-import { useActions, useController, useEditorShallow, useStageStates } from "../../store/context.js";
+import { AudioLines, ClipboardPaste, Film, FolderOpen, Image as ImageIcon, LoaderCircle, Music, Shapes, Sparkles, Star, Upload } from "lucide-react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
+import { formatSecondsShort, plural } from "../../lib/format.js";
+import { useActions, useEditor, useEditorShallow, useStageStates } from "../../store/context.js";
 import { ELEMENT_CATEGORIES, RAW_CATEGORIES } from "../../store/derive.js";
 import type { UploadItem } from "../../store/editorStore.js";
-import { Dropzone, EmptyState, SectionLabel, StageCard, Tooltip, useFileDrop } from "../../ui/index.js";
-import { AssetRow, AssetThumb, ROLE_HELP, UploadRow, UploadThumb } from "./assets.js";
+import { Button, Dropzone, EmptyState, Kbd, SectionLabel, StageCard, Tooltip, useFileDrop } from "../../ui/index.js";
+import { AssetList } from "../../entrada/material/AssetCard.js";
+import { MediaPreview } from "../../entrada/material/MediaPreview.js";
+import { groupByCategory } from "../../entrada/order.js";
+import { CATEGORY_LABELS, usePasteFiles, useUploader, type UploadRequest } from "../../entrada/uploads.js";
+import { AssetThumb, ROLE_HELP, UploadThumb } from "./assets.js";
 
 export interface StageProps {
   variant: "compact" | "focus";
@@ -40,31 +46,46 @@ export function MaterialStage({ variant }: StageProps) {
   );
 }
 
+/** Sube a la zona indicada (o reparte por tipo) y avisa cuántos se agregaron. */
+function useUpload() {
+  const uploader = useUploader();
+  return (files: File[], req: UploadRequest) => void uploader.upload(files, req);
+}
+
 // ---------------------------------------------------------------------------- Compacto (lienzo)
 
 function MaterialCompact() {
   const { assets, uploads } = useMaterialData();
-  const controller = useController();
+  const focus = useEditor((s) => s.focus);
+  const upload = useUpload();
   const raw = assets.filter((a) => isRaw(a.category));
   const elements = assets.filter((a) => isElement(a.category));
   const rawUploads = uploads.filter((u) => isRaw(u.category));
-  const elementUploads = uploads.filter((u) => !isRaw(u.category));
-  const brollCount = raw.filter((a) => a.analysis.status === "listo" && (a.analysis.role === "b-roll" || a.analysis.role === "mixto")).length;
+  const elementUploads = uploads.filter((u) => !isRaw(u.category) && isElement(u.category));
+  const brollCount = raw.filter((a) => a.analysis.status === "listo" && (a.analysis.role === "b-roll" || a.analysis.role === "mixto" || a.analysis.brollSegments.length > 0)).length;
+  const analyzing = raw.filter((a) => a.analysis.status === "pendiente" || a.analysis.status === "analizando").length;
+
+  // Pegar (Ctrl+V) en el diagrama sube al material en crudo; dentro de MATERIAL lo maneja su vista.
+  usePasteFiles(!focus, (files) => upload(files, { zone: "crudo" }));
 
   return (
     <div className="ae-material">
       <CompactSection
         title="Material en crudo"
         count={raw.length}
-        onFiles={(f) => void controller.uploadFiles(f, "crudo")}
+        onFiles={(f) => upload(f, { zone: "crudo" })}
         extra={
-          brollCount > 0 ? (
+          analyzing > 0 ? (
+            <span className="ae-mini-note ae-in-mini-busy">
+              <LoaderCircle size={11} className="ae-spin" aria-hidden /> Analizando {analyzing}
+            </span>
+          ) : brollCount > 0 ? (
             <Tooltip text={ROLE_HELP}>
               <span className="ae-mini-note">{brollCount} con B-roll</span>
             </Tooltip>
           ) : null
         }
-        empty={<Dropzone size="md" label="Sube tus videos" hint="Arrástralos o toca para elegir · también fotos y voz" accept={ACCEPT_RAW} icon={<Film size={20} />} onFiles={(f) => void controller.uploadFiles(f, "crudo")} />}
+        empty={<Dropzone size="md" label="Sube tus videos" hint="Arrástralos, toca para elegir o pega con Ctrl+V · también fotos y voz" accept={ACCEPT_RAW} icon={<Film size={20} />} onFiles={(f) => upload(f, { zone: "crudo" })} />}
       >
         {(raw.length > 0 || rawUploads.length > 0) && <ThumbGrid assets={raw} uploads={rawUploads} max={6} />}
       </CompactSection>
@@ -73,8 +94,8 @@ function MaterialCompact() {
         title="Elementos del video"
         count={elements.length}
         optional
-        onFiles={(f) => void controller.uploadFiles(f, "elementos")}
-        empty={<Dropzone size="sm" label="Música, efectos, logos o gráficos" accept={ACCEPT_ELEMENTS} icon={<Music size={16} />} onFiles={(f) => void controller.uploadFiles(f, "elementos")} />}
+        onFiles={(f) => upload(f, { zone: "elementos" })}
+        empty={<Dropzone size="sm" label="Música, efectos, logos o gráficos" accept={ACCEPT_ELEMENTS} icon={<Music size={16} />} onFiles={(f) => upload(f, { zone: "elementos" })} />}
       >
         {(elements.length > 0 || elementUploads.length > 0) && (
           <div className="ae-elements">
@@ -128,11 +149,12 @@ function ThumbGrid({ assets, uploads, max }: { assets: Asset[]; uploads: UploadI
   const rest = items.length - shown.length;
   return (
     <div className="ae-thumbgrid">
-      {shown.map((it, i) =>
-        it.kind === "u" ? <UploadThumb key={it.u.id} item={it.u} /> : <AssetThumb key={it.a.id} asset={it.a} />,
+      {shown.map((it) => (it.kind === "u" ? <UploadThumb key={it.u.id} item={it.u} /> : <AssetThumb key={it.a.id} asset={it.a} />))}
+      {rest > 0 && (
+        <div className="ae-thumbgrid__more" aria-label={`${rest} archivos más`}>
+          +{rest}
+        </div>
       )}
-      {rest > 0 && <div className="ae-thumbgrid__more" aria-label={`${rest} archivos más`}>+{rest}</div>}
-      {shown.length === 0 && null}
       {items.length > 0 && items.length < 3 && Array.from({ length: 3 - items.length }).map((_, i) => <div key={`ph${i}`} className="ae-thumb ae-thumb--md ae-thumb--placeholder" aria-hidden />)}
     </div>
   );
@@ -177,7 +199,7 @@ const ELEMENT_ZONES: ZoneDef[] = [
   {
     key: "deben",
     title: "Videos que deben aparecer",
-    hint: "Se suben a tus videos marcados como “debe aparecer”.",
+    hint: "Se agregan a tus videos marcados como “debe aparecer”.",
     icon: <Star size={18} />,
     accept: "video/*,.mov,.mp4",
     categories: [],
@@ -189,16 +211,72 @@ const ELEMENT_ZONES: ZoneDef[] = [
 
 function MaterialFocus() {
   const { assets, uploads } = useMaterialData();
-  const actions = useActions();
   const states = useStageStates();
+  const upload = useUpload();
+  const pick = useRef<HTMLInputElement>(null);
+  const [preview, setPreview] = useState<string | null>(null);
   const raw = assets.filter((a) => isRaw(a.category));
   const rawUploads = uploads.filter((u) => isRaw(u.category));
   const elements = assets.filter((a) => isElement(a.category));
-  const elementUploads = uploads.filter((u) => !isRaw(u.category));
+  const elementUploads = uploads.filter((u) => !isRaw(u.category) && isElement(u.category));
   const mustAppear = raw.filter((a) => a.category === "crudo-video" && a.priority === "debe-aparecer").length;
+  const rawGroups = useMemo(() => groupByCategory(raw, RAW_CATEGORIES), [raw]);
+  const elementGroups = useMemo(() => groupByCategory(elements, ELEMENT_CATEGORIES), [elements]);
+  const ordered = useMemo(() => [...rawGroups, ...elementGroups].flatMap((g) => g.items), [rawGroups, elementGroups]);
+
+  usePasteFiles(true, (files) => upload(files, { zone: "crudo" }));
+
+  const videoSeconds = raw.filter((a) => a.category === "crudo-video").reduce((s, a) => s + (a.probe.duration ?? 0), 0);
+  const brollAssets = raw.filter((a) => a.analysis.status === "listo" && (a.analysis.role === "b-roll" || a.analysis.brollSegments.length > 0)).length;
+  const analyzing = assets.filter((a) => a.analysis.status === "pendiente" || a.analysis.status === "analizando").length;
+
   return (
     <div className="ae-material-focus">
-      <p className="ae-lead">{states.material.hint} El análisis (escenas, voz y A-roll/B-roll) arranca solo al subir; no tienes que esperar a GENERAR.</p>
+      <div className="ae-in-mtop">
+        <p className="ae-lead">
+          {states.material.hint} El análisis (escenas, voz y A-roll/B-roll) arranca solo al subir; no tienes que esperar a GENERAR.
+        </p>
+        <div className="ae-in-mtop__actions">
+          <Button tone="ink" icon={<FolderOpen size={15} />} onClick={() => pick.current?.click()}>
+            Elegir archivos
+          </Button>
+          <span className="ae-in-mtop__paste">
+            <ClipboardPaste size={14} aria-hidden /> o pega con <Kbd>Ctrl</Kbd>
+            <Kbd>V</Kbd>
+          </span>
+          <input
+            ref={pick}
+            type="file"
+            hidden
+            multiple
+            accept={`${ACCEPT_RAW},${ACCEPT_ELEMENTS}`}
+            onChange={(e) => {
+              const files = Array.from(e.target.files ?? []);
+              e.target.value = "";
+              if (files.length) upload(files, { zone: "crudo" });
+            }}
+          />
+        </div>
+      </div>
+      {raw.length > 0 && (
+        <div className="ae-in-msummary" aria-label="Resumen del material">
+          <span>
+            <b>{plural(raw.filter((a) => a.category === "crudo-video").length, "video", "videos")}</b>
+          </span>
+          {videoSeconds > 0 && <span>{formatSecondsShort(videoSeconds)} de material</span>}
+          {mustAppear > 0 && (
+            <span>
+              <Star size={12} aria-hidden /> {mustAppear} “debe aparecer”
+            </span>
+          )}
+          {brollAssets > 0 && <span className="is-broll">{brollAssets} con B-roll</span>}
+          {analyzing > 0 && (
+            <span className="is-busy">
+              <LoaderCircle size={12} className="ae-spin" aria-hidden /> {analyzing} analizando
+            </span>
+          )}
+        </div>
+      )}
       <div className="ae-material-focus__cols">
         <section className="ae-panel" aria-label="Material en crudo">
           <header className="ae-panel__head">
@@ -210,7 +288,17 @@ function MaterialFocus() {
               <Zone key={z.key} zone={z} zoneGroup="crudo" />
             ))}
           </div>
-          <FileList assets={raw} uploads={rawUploads} onDismiss={actions.removeUpload} empty="Todavía no hay material. Arrastra tus videos a la zona de arriba." />
+          {rawUploads.length > 0 && <AssetList assets={[]} uploads={rawUploads} onPreview={setPreview} />}
+          {rawGroups.map((g) => (
+            <CategoryBlock key={g.category} category={g.category as AssetCategory} count={g.items.length}>
+              <AssetList assets={g.items} uploads={[]} onPreview={setPreview} />
+            </CategoryBlock>
+          ))}
+          {!raw.length && !rawUploads.length && (
+            <EmptyState compact icon={<Upload size={20} />} title="Todavía no hay material">
+              Arrastra tus videos a la zona de arriba, toca “Elegir archivos” o pega con Ctrl+V.
+            </EmptyState>
+          )}
         </section>
         <section className="ae-panel" aria-label="Elementos del video">
           <header className="ae-panel__head">
@@ -222,19 +310,39 @@ function MaterialFocus() {
               <Zone key={z.key} zone={z} zoneGroup="elementos" extra={z.key === "deben" && mustAppear > 0 ? `${mustAppear} ${mustAppear === 1 ? "marcado" : "marcados"}` : undefined} />
             ))}
           </div>
-          <FileList assets={elements} uploads={elementUploads} onDismiss={actions.removeUpload} empty="Música, efectos, logos o gráficos que quieras usar. Si no subes nada, Claude usa la biblioteca." />
+          {elementUploads.length > 0 && <AssetList assets={[]} uploads={elementUploads} onPreview={setPreview} />}
+          {elementGroups.map((g) => (
+            <CategoryBlock key={g.category} category={g.category as AssetCategory} count={g.items.length}>
+              <AssetList assets={g.items} uploads={[]} onPreview={setPreview} />
+            </CategoryBlock>
+          ))}
+          {!elements.length && !elementUploads.length && (
+            <EmptyState compact icon={<Music size={20} />} title="Sin elementos">
+              Música, efectos, logos o gráficos que quieras usar. Si no subes nada, Claude usa la biblioteca.
+            </EmptyState>
+          )}
         </section>
       </div>
+      <MediaPreview assets={ordered} assetId={preview} onClose={() => setPreview(null)} onNavigate={setPreview} />
+    </div>
+  );
+}
+
+function CategoryBlock({ category, count, children }: { category: AssetCategory; count: number; children: ReactNode }) {
+  return (
+    <div className="ae-in-catblock">
+      <SectionLabel extra={<span className="ae-count">{count}</span>}>{CATEGORY_LABELS[category] ?? category}</SectionLabel>
+      {children}
     </div>
   );
 }
 
 function Zone({ zone, zoneGroup, extra }: { zone: ZoneDef; zoneGroup: "crudo" | "elementos"; extra?: string }) {
-  const controller = useController();
+  const upload = useUpload();
   const { assets } = useMaterialData();
   const n = zone.uploadOnly ? 0 : assets.filter((a) => zone.categories.includes(a.category)).length;
   return (
-    <Dropzone accept={zone.accept} label={zone.title} hint={zone.hint} onFiles={(f) => void controller.uploadFiles(f, zoneGroup, zone.forced, zone.priority ? { priority: zone.priority } : undefined)}>
+    <Dropzone accept={zone.accept} label={zone.title} hint={zone.hint} onFiles={(f) => upload(f, { zone: zoneGroup, category: zone.forced, priority: zone.priority })}>
       <span className="ae-drop__icon" aria-hidden>
         {zone.icon}
       </span>
@@ -245,19 +353,5 @@ function Zone({ zone, zoneGroup, extra }: { zone: ZoneDef; zoneGroup: "crudo" | 
       <span className="ae-drop__hint">{zone.hint}</span>
       {extra && <span className="ae-chip ae-chip--sm ae-chip--purple">{extra}</span>}
     </Dropzone>
-  );
-}
-
-function FileList({ assets, uploads, empty, onDismiss }: { assets: Asset[]; uploads: UploadItem[]; empty: string; onDismiss: (id: string) => void }) {
-  if (!assets.length && !uploads.length) return <EmptyState compact icon={<Upload size={20} />} title="Sin archivos">{empty}</EmptyState>;
-  return (
-    <div className="ae-filelist">
-      {uploads.map((u) => (
-        <UploadRow key={u.id} item={u} onDismiss={() => onDismiss(u.id)} />
-      ))}
-      {assets.map((a) => (
-        <AssetRow key={a.id} asset={a} />
-      ))}
-    </div>
   );
 }

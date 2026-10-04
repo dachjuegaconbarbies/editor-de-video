@@ -1,17 +1,611 @@
 {
-  "$comment": "Proveedores externos. Kie AI cambia modelos y precios seguido: edítalos aquí. 'verified': false = campos aún no confirmados contra la documentación/llamada real.",
+  "$comment": "Proveedores externos. Kie AI cambia modelos y precios seguido: edítalos aquí sin tocar código. 'verified': false = precio o campos aún no confirmados con una llamada real. En 'defaults', las claves que empiezan con '$' son metadatos del adaptador ($unit, $baseSeconds, $aspectRatios, $durations, $durationRange, $durationType) y nunca se envían a Kie. La llave va solo en .env (KIE_API_KEY).",
   "kie": {
     "baseUrl": "https://api.kie.ai",
     "usdPerCredit": 0.005,
     "pollIntervalMs": 4000,
     "timeoutMs": 900000,
     "maxRetries": 3,
-    "defaults": { "imagen": "", "video": "", "musica": "", "voz": "", "sfx": "" },
-    "models": []
+    "defaults": {
+      "imagen": "nano-banana-2",
+      "video": "bytedance/seedance-2-mini",
+      "musica": "suno-v5",
+      "voz": "elevenlabs/text-to-speech-multilingual-v2",
+      "sfx": "suno-sounds-v5"
+    },
+    "models": [
+      {
+        "api": "market",
+        "createPath": "/api/v1/jobs/createTask",
+        "statusPath": "/api/v1/jobs/recordInfo",
+        "enabled": true,
+        "verified": false,
+        "id": "nano-banana-2",
+        "label": "Nano Banana 2 (Google)",
+        "kind": "imagen",
+        "model": "nano-banana-2",
+        "defaults": {
+          "aspect_ratio": "9:16",
+          "resolution": "1K",
+          "output_format": "png",
+          "$unit": "image",
+          "$aspectRatios": [
+            "1:1",
+            "1:4",
+            "1:8",
+            "2:3",
+            "3:2",
+            "3:4",
+            "4:1",
+            "4:3",
+            "4:5",
+            "5:4",
+            "8:1",
+            "9:16",
+            "16:9",
+            "21:9",
+            "auto"
+          ]
+        },
+        "fieldMap": {
+          "prompt": "prompt",
+          "aspectRatio": "aspect_ratio",
+          "resolution": "resolution"
+        },
+        "costCredits": 8,
+        "costUsd": 0.04,
+        "typicalSeconds": 30,
+        "notes": "8/12/18 créditos en 1K/2K/4K (lista de precios 2026-09-25 + @uxdata-co/kie). Sin seed ni negative prompt. Confianza alta en el precio; campos sin llamada real."
+      },
+      {
+        "api": "market",
+        "createPath": "/api/v1/jobs/createTask",
+        "statusPath": "/api/v1/jobs/recordInfo",
+        "enabled": true,
+        "verified": false,
+        "id": "nano-banana-2-lite",
+        "label": "Nano Banana 2 Lite (borradores baratos)",
+        "kind": "imagen",
+        "model": "nano-banana-2-lite",
+        "defaults": {
+          "aspect_ratio": "9:16",
+          "$unit": "image",
+          "$aspectRatios": [
+            "1:1",
+            "1:4",
+            "1:8",
+            "2:3",
+            "3:2",
+            "3:4",
+            "4:1",
+            "4:3",
+            "4:5",
+            "5:4",
+            "8:1",
+            "9:16",
+            "16:9",
+            "21:9",
+            "auto"
+          ]
+        },
+        "fieldMap": {
+          "prompt": "prompt",
+          "aspectRatio": "aspect_ratio"
+        },
+        "costCredits": 4,
+        "costUsd": 0.02,
+        "typicalSeconds": 20,
+        "notes": "4 créditos: precio público 2026-09-25 y medición real de kie-mcp (2026-07-02)."
+      },
+      {
+        "api": "market",
+        "createPath": "/api/v1/jobs/createTask",
+        "statusPath": "/api/v1/jobs/recordInfo",
+        "enabled": true,
+        "verified": false,
+        "id": "nano-banana-pro",
+        "label": "Nano Banana Pro (portadas / calidad)",
+        "kind": "imagen",
+        "model": "nano-banana-pro",
+        "defaults": {
+          "aspect_ratio": "9:16",
+          "resolution": "1K",
+          "output_format": "png",
+          "$unit": "image",
+          "$aspectRatios": [
+            "1:1",
+            "2:3",
+            "3:2",
+            "3:4",
+            "4:3",
+            "4:5",
+            "5:4",
+            "9:16",
+            "16:9",
+            "21:9",
+            "auto"
+          ]
+        },
+        "fieldMap": {
+          "prompt": "prompt",
+          "aspectRatio": "aspect_ratio",
+          "resolution": "resolution"
+        },
+        "costCredits": 18,
+        "costUsd": 0.09,
+        "typicalSeconds": 45,
+        "notes": "Mínimo 18 créditos (2 tiers); 24 en 4K NO VERIFICADO."
+      },
+      {
+        "api": "market",
+        "createPath": "/api/v1/jobs/createTask",
+        "statusPath": "/api/v1/jobs/recordInfo",
+        "enabled": true,
+        "verified": false,
+        "id": "google/imagen4-fast",
+        "label": "Imagen 4 Fast (negative prompt + semilla)",
+        "kind": "imagen",
+        "model": "google/imagen4-fast",
+        "defaults": {
+          "aspect_ratio": "9:16",
+          "$unit": "image",
+          "$aspectRatios": [
+            "1:1",
+            "16:9",
+            "9:16",
+            "3:4",
+            "4:3",
+            "auto"
+          ]
+        },
+        "fieldMap": {
+          "prompt": "prompt",
+          "negativePrompt": "negative_prompt",
+          "seed": "seed",
+          "aspectRatio": "aspect_ratio"
+        },
+        "costCredits": 4,
+        "costUsd": 0.02,
+        "typicalSeconds": 20,
+        "notes": "Semilla entera (reproducible) y negative_prompt ≤ 5000. 4 créditos medidos por kie-mcp (2026-09-22)."
+      },
+      {
+        "api": "market",
+        "createPath": "/api/v1/jobs/createTask",
+        "statusPath": "/api/v1/jobs/recordInfo",
+        "enabled": true,
+        "verified": false,
+        "id": "seedream/4.5-text-to-image",
+        "label": "Seedream 4.5 (ByteDance)",
+        "kind": "imagen",
+        "model": "seedream/4.5-text-to-image",
+        "defaults": {
+          "aspect_ratio": "9:16",
+          "quality": "basic",
+          "$unit": "image",
+          "$aspectRatios": [
+            "1:1",
+            "4:3",
+            "3:4",
+            "16:9",
+            "9:16",
+            "2:3",
+            "3:2",
+            "21:9"
+          ]
+        },
+        "fieldMap": {
+          "prompt": "prompt",
+          "aspectRatio": "aspect_ratio"
+        },
+        "costCredits": 6.5,
+        "costUsd": 0.0325,
+        "typicalSeconds": 30,
+        "notes": "6.5 créditos según la lista pública; kie-mcp dice 5 (discrepancia). quality es obligatorio (basic = 2K)."
+      },
+      {
+        "api": "market",
+        "createPath": "/api/v1/jobs/createTask",
+        "statusPath": "/api/v1/jobs/recordInfo",
+        "enabled": true,
+        "verified": false,
+        "id": "gpt-image-2-text-to-image",
+        "label": "GPT Image 2 (texto dentro de la imagen)",
+        "kind": "imagen",
+        "model": "gpt-image-2-text-to-image",
+        "defaults": {
+          "aspect_ratio": "9:16",
+          "resolution": "1K",
+          "$unit": "image",
+          "$aspectRatios": [
+            "auto",
+            "1:1",
+            "3:2",
+            "2:3",
+            "4:3",
+            "3:4",
+            "5:4",
+            "4:5",
+            "9:16",
+            "16:9",
+            "2:1",
+            "1:2",
+            "3:1",
+            "1:3",
+            "21:9",
+            "9:21"
+          ]
+        },
+        "fieldMap": {
+          "prompt": "prompt",
+          "aspectRatio": "aspect_ratio",
+          "resolution": "resolution"
+        },
+        "costCredits": 6,
+        "costUsd": 0.03,
+        "typicalSeconds": 40,
+        "notes": "Mínimo 6 créditos (3 tiers; 2K/4K NO VERIFICADO); kie-mcp dice 8."
+      },
+      {
+        "api": "market",
+        "createPath": "/api/v1/jobs/createTask",
+        "statusPath": "/api/v1/jobs/recordInfo",
+        "enabled": true,
+        "verified": false,
+        "id": "z-image",
+        "label": "Z-Image (el más barato)",
+        "kind": "imagen",
+        "model": "z-image",
+        "defaults": {
+          "aspect_ratio": "9:16",
+          "$unit": "image",
+          "$aspectRatios": [
+            "1:1",
+            "4:3",
+            "3:4",
+            "16:9",
+            "9:16"
+          ]
+        },
+        "fieldMap": {
+          "prompt": "prompt",
+          "aspectRatio": "aspect_ratio"
+        },
+        "costCredits": 0.8,
+        "costUsd": 0.004,
+        "typicalSeconds": 15,
+        "notes": "0.8 créditos según la lista pública; kie-mcp dice 3 (discrepancia fuerte). Prompt ≤ 1000."
+      },
+      {
+        "api": "market",
+        "createPath": "/api/v1/jobs/createTask",
+        "statusPath": "/api/v1/jobs/recordInfo",
+        "enabled": true,
+        "verified": false,
+        "id": "bytedance/seedance-2-mini",
+        "label": "Seedance 2 Mini (barato)",
+        "kind": "video",
+        "model": "bytedance/seedance-2-mini",
+        "defaults": {
+          "aspect_ratio": "9:16",
+          "duration": 5,
+          "resolution": "720p",
+          "generate_audio": false,
+          "$unit": "second",
+          "$baseSeconds": 5,
+          "$durationRange": [
+            4,
+            15
+          ],
+          "$durationType": "integer",
+          "$aspectRatios": [
+            "16:9",
+            "4:3",
+            "1:1",
+            "3:4",
+            "9:16",
+            "21:9",
+            "adaptive"
+          ]
+        },
+        "fieldMap": {
+          "prompt": "prompt",
+          "aspectRatio": "aspect_ratio",
+          "duration": "duration",
+          "resolution": "resolution"
+        },
+        "costCredits": 41,
+        "costUsd": 0.205,
+        "typicalSeconds": 120,
+        "notes": "8.2 créditos/s a 720p (3.8/s a 480p). Costo base = 5 s. Precio publicado por Kie y medido por kie-mcp."
+      },
+      {
+        "api": "market",
+        "createPath": "/api/v1/jobs/createTask",
+        "statusPath": "/api/v1/jobs/recordInfo",
+        "enabled": true,
+        "verified": false,
+        "id": "grok-imagine/text-to-video",
+        "label": "Grok Imagine (hasta 30 s)",
+        "kind": "video",
+        "model": "grok-imagine/text-to-video",
+        "defaults": {
+          "aspect_ratio": "9:16",
+          "duration": 6,
+          "resolution": "720p",
+          "mode": "normal",
+          "$unit": "second",
+          "$baseSeconds": 6,
+          "$durationRange": [
+            6,
+            30
+          ],
+          "$durationType": "integer",
+          "$aspectRatios": [
+            "2:3",
+            "3:2",
+            "1:1",
+            "16:9",
+            "9:16"
+          ]
+        },
+        "fieldMap": {
+          "prompt": "prompt",
+          "aspectRatio": "aspect_ratio",
+          "duration": "duration",
+          "resolution": "resolution"
+        },
+        "costCredits": 27,
+        "costUsd": 0.135,
+        "typicalSeconds": 120,
+        "notes": "2.4/4.5/8 créditos por segundo (480p/720p/1080p). Costo base = 6 s a 720p."
+      },
+      {
+        "api": "market",
+        "createPath": "/api/v1/jobs/createTask",
+        "statusPath": "/api/v1/jobs/recordInfo",
+        "enabled": true,
+        "verified": false,
+        "id": "kling-3.0/video",
+        "label": "Kling 3.0",
+        "kind": "video",
+        "model": "kling-3.0/video",
+        "defaults": {
+          "aspect_ratio": "9:16",
+          "duration": "5",
+          "mode": "std",
+          "sound": false,
+          "multi_shots": false,
+          "$unit": "second",
+          "$baseSeconds": 5,
+          "$durationRange": [
+            3,
+            15
+          ],
+          "$durationType": "string",
+          "$aspectRatios": [
+            "16:9",
+            "9:16",
+            "1:1"
+          ]
+        },
+        "fieldMap": {
+          "prompt": "prompt",
+          "aspectRatio": "aspect_ratio",
+          "duration": "duration"
+        },
+        "costCredits": 70,
+        "costUsd": 0.35,
+        "typicalSeconds": 150,
+        "notes": "Mínimo 14 créditos/s (6 tiers; pro/4K/audio NO VERIFICADO). La duración va como texto."
+      },
+      {
+        "api": "dedicated",
+        "createPath": "/api/v1/veo/generate",
+        "statusPath": "/api/v1/veo/record-info",
+        "enabled": true,
+        "verified": false,
+        "id": "veo3_lite",
+        "label": "Veo 3.1 Lite (Google)",
+        "kind": "video",
+        "model": "veo3_lite",
+        "defaults": {
+          "aspect_ratio": "9:16",
+          "generationType": "TEXT_2_VIDEO",
+          "enableTranslation": true,
+          "$unit": "video",
+          "$durations": [
+            4,
+            6,
+            8
+          ],
+          "$durationType": "integer",
+          "$aspectRatios": [
+            "16:9",
+            "9:16",
+            "Auto"
+          ]
+        },
+        "fieldMap": {
+          "prompt": "prompt",
+          "aspectRatio": "aspect_ratio",
+          "seed": "seeds",
+          "duration": "duration",
+          "resolution": "resolution"
+        },
+        "costCredits": 30,
+        "costUsd": 0.15,
+        "typicalSeconds": 180,
+        "notes": "API dedicada (cuerpo plano). ~30 créditos por clip de 8 s (kie-mcp 2026-06-01). aspect_ratio en snake_case NO VERIFICADO."
+      },
+      {
+        "api": "dedicated",
+        "createPath": "/api/v1/veo/generate",
+        "statusPath": "/api/v1/veo/record-info",
+        "enabled": true,
+        "verified": false,
+        "id": "veo3_fast",
+        "label": "Veo 3.1 Fast (Google)",
+        "kind": "video",
+        "model": "veo3_fast",
+        "defaults": {
+          "aspect_ratio": "9:16",
+          "generationType": "TEXT_2_VIDEO",
+          "enableTranslation": true,
+          "$unit": "video",
+          "$durations": [
+            4,
+            6,
+            8
+          ],
+          "$durationType": "integer",
+          "$aspectRatios": [
+            "16:9",
+            "9:16",
+            "Auto"
+          ]
+        },
+        "fieldMap": {
+          "prompt": "prompt",
+          "aspectRatio": "aspect_ratio",
+          "seed": "seeds",
+          "duration": "duration",
+          "resolution": "resolution"
+        },
+        "costCredits": 168,
+        "costUsd": 0.84,
+        "typicalSeconds": 180,
+        "notes": "NO VERIFICADO: 60–168 créditos por clip de 8 s según la fuente; se usa el peor caso para presupuestar."
+      },
+      {
+        "api": "dedicated",
+        "createPath": "/api/v1/generate",
+        "statusPath": "/api/v1/generate/record-info",
+        "enabled": true,
+        "verified": false,
+        "id": "suno-v5",
+        "label": "Suno V5 (música)",
+        "kind": "musica",
+        "model": "V5",
+        "defaults": {
+          "customMode": false,
+          "instrumental": true,
+          "callBackUrl": "https://example.invalid/kie-callback",
+          "$unit": "request"
+        },
+        "fieldMap": {
+          "prompt": "prompt"
+        },
+        "costCredits": 12,
+        "costUsd": 0.06,
+        "typicalSeconds": 120,
+        "notes": "12 créditos por petición (≈2 pistas). Suno exige callBackUrl aunque se consulte el estado: se manda un marcador. La duración la decide el modelo (se recorta con ffmpeg)."
+      },
+      {
+        "api": "market",
+        "createPath": "/api/v1/jobs/createTask",
+        "statusPath": "/api/v1/jobs/recordInfo",
+        "enabled": true,
+        "verified": false,
+        "id": "elevenlabs/text-to-speech-multilingual-v2",
+        "label": "ElevenLabs Multilingual v2 (voz en off)",
+        "kind": "voz",
+        "model": "elevenlabs/text-to-speech-multilingual-v2",
+        "defaults": {
+          "voice": "EkK5I93UQWFDigLMpZcX",
+          "stability": 0.5,
+          "similarity_boost": 0.75,
+          "speed": 1,
+          "$unit": "1000_chars"
+        },
+        "fieldMap": {
+          "prompt": "text",
+          "voice": "voice"
+        },
+        "costCredits": 12,
+        "costUsd": 0.06,
+        "typicalSeconds": 30,
+        "notes": "12 créditos por cada 1000 caracteres (redondeo hacia arriba), medido por kie-mcp. Solo voces del catálogo de Kie (voz por defecto: James)."
+      },
+      {
+        "api": "market",
+        "createPath": "/api/v1/jobs/createTask",
+        "statusPath": "/api/v1/jobs/recordInfo",
+        "enabled": true,
+        "verified": false,
+        "id": "elevenlabs/text-to-speech-turbo-2-5",
+        "label": "ElevenLabs Turbo 2.5 (voz barata)",
+        "kind": "voz",
+        "model": "elevenlabs/text-to-speech-turbo-2-5",
+        "defaults": {
+          "voice": "EkK5I93UQWFDigLMpZcX",
+          "language_code": "es",
+          "$unit": "1000_chars"
+        },
+        "fieldMap": {
+          "prompt": "text",
+          "voice": "voice"
+        },
+        "costCredits": 6,
+        "costUsd": 0.03,
+        "typicalSeconds": 20,
+        "notes": "6 créditos por cada 1000 caracteres. language_code: es NO VERIFICADO."
+      },
+      {
+        "api": "dedicated",
+        "createPath": "/api/v1/generate/sounds",
+        "statusPath": "/api/v1/generate/record-info",
+        "enabled": true,
+        "verified": false,
+        "id": "suno-sounds-v5",
+        "label": "Suno Sounds V5 (efectos y ambientes)",
+        "kind": "sfx",
+        "model": "V5",
+        "defaults": {
+          "soundLoop": false,
+          "$unit": "request"
+        },
+        "fieldMap": {
+          "prompt": "prompt"
+        },
+        "costCredits": 2.5,
+        "costUsd": 0.0125,
+        "typicalSeconds": 60,
+        "notes": "2.5 créditos según la lista pública; kie-mcp dice 5. Sin control exacto de duración: se pide en el prompt y se recorta."
+      },
+      {
+        "api": "market",
+        "createPath": "/api/v1/jobs/createTask",
+        "statusPath": "/api/v1/jobs/recordInfo",
+        "enabled": false,
+        "verified": false,
+        "id": "elevenlabs/sound-effect-v2",
+        "label": "ElevenLabs SFX v2 (probablemente retirado)",
+        "kind": "sfx",
+        "model": "elevenlabs/sound-effect-v2",
+        "defaults": {
+          "$unit": "request"
+        },
+        "fieldMap": {
+          "prompt": "text"
+        },
+        "costCredits": 0,
+        "costUsd": 0,
+        "typicalSeconds": 30,
+        "notes": "Apagado: no aparece en la lista de precios del 2026-09-25 y kie-mcp reporta que falla con 500."
+      }
+    ]
   },
   "motion": {
     "defaultEngine": "hyperframes",
-    "hyperframes": { "enabled": true, "command": "hyperframes", "timeoutMs": 300000 },
-    "remotion": { "enabled": false, "licenseNote": "Remotion requiere licencia de empresa a partir de 4 personas y compra de 'Renders' para renders automatizados. Apagado por defecto." }
+    "hyperframes": {
+      "enabled": true,
+      "command": "hyperframes",
+      "timeoutMs": 300000
+    },
+    "remotion": {
+      "enabled": false,
+      "licenseNote": "Remotion requiere licencia de empresa a partir de 4 personas y compra de 'Renders' para renders automatizados. Apagado por defecto."
+    }
   }
 }

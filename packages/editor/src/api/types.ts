@@ -21,6 +21,7 @@ import type {
   Plan,
   Project,
   ProjectDetail,
+  ProjectSettings,
   PublicConfig,
   ServerEvent,
   Style,
@@ -109,12 +110,15 @@ export interface ApiClient {
   // Transcripción y palabras clave
   listTranscripts(projectId: string): Promise<Transcript[]>;
   updateTranscriptWords(transcriptId: string, body: UpdateTranscriptWordsBody): Promise<Transcript>;
+  /** Vuelve a transcribir un archivo (POST /assets/:assetId/transcribe → trabajo "transcribir"). */
+  retranscribe(assetId: string): Promise<Job>;
   getKeywords(projectId: string): Promise<KeywordsResponse>;
   putKeywords(projectId: string, keywords: Keyword[]): Promise<Keyword[]>;
   detectKeywords(projectId: string): Promise<KeywordsResponse>;
 
   // Generar, plan y trabajos
-  estimate(projectId: string): Promise<EstimateResponse>;
+  /** Con `settings`, estima esa configuración sin guardarla (para recalcular al prender/apagar cosas). */
+  estimate(projectId: string, settings?: ProjectSettings): Promise<EstimateResponse>;
   generate(projectId: string): Promise<Job>;
   getPlan(planId: string): Promise<Plan>;
   approvePlan(planId: string): Promise<Job>;

@@ -159,3 +159,14 @@ export function wordAt(words: TWord[], t: number, margin = 0.03): TWord | null {
   }
   return null;
 }
+
+/**
+ * Términos que conviene RESALTAR en los subtítulos: palabras clave activas y cortas (≤ 3 palabras).
+ * El gancho y el llamado a la acción son frases completas: sirven para títulos y texto de publicación,
+ * pero resaltarlas pintaría la frase entera. Lo usa el servidor al materializar subtítulos.
+ */
+export function highlightTerms(keywords: Keyword[]): string[] {
+  return keywords
+    .filter((k) => k.enabled && k.category !== "gancho" && k.category !== "cta" && k.text.trim().split(/\s+/).length <= 3)
+    .map((k) => k.text);
+}

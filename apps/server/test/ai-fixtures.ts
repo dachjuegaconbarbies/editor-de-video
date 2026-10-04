@@ -23,7 +23,7 @@ import {
 } from "@autoeditor/shared";
 import { REPO_ROOT } from "../src/env.js";
 import type { EditInput, EditorToolbox } from "../src/services/types.js";
-import { sourceWords } from "../src/ai/shared/transcript.js";
+import { highlightTerms, sourceWords } from "../src/ai/shared/transcript.js";
 
 export const SAMPLES = path.join(REPO_ROOT, "data/muestras");
 export const OWNER = "local";
@@ -221,7 +221,7 @@ export function makeToolbox(transcripts: Transcript[], keywords: Keyword[] = [])
       }
     },
     materializeCaptions(recipe: Recipe) {
-      const kw = keywords.filter((k) => k.enabled).map((k) => k.text);
+      const kw = highlightTerms(keywords);
       return { ...recipe, tracks: { ...recipe.tracks, captions: { ...recipe.tracks.captions, words: materializeCaptionWords(recipe, words, kw, recipe.tracks.captions.overrides) } } };
     },
     motionTemplates: () => TEMPLATES,
