@@ -1,0 +1,26 @@
+node_modules/
+dist/
+build/
+coverage/
+.turbo/
+*.log
+.DS_Store
+.env
+.env.local
+# Datos locales del editor (base de datos, archivos subidos, renders)
+data/*
+!data/.gitkeep
+# Entorno de Python del worker
+workers/python/.venv/
+__pycache__/
+*.pyc
+# Modelos descargados
+models/
+# Artefactos de pruebas
+test-results/
+playwright-report/
+apps/web/test-results/
+tmp/
+# Skills de terceros (HyperFrames, Kie, etc.): se restauran con `pnpm setup` desde skills-lock.json
+.agents/skills/
+.claude/skills/

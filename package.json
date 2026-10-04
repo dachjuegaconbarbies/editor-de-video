@@ -1,0 +1,26 @@
+{
+  "name": "autoeditor-zyra",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Autoeditor de video con IA: Claude edita, tú corriges, el estilo se guarda y se reutiliza.",
+  "type": "module",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "dev": "concurrently -k -n server,web -c blue,magenta \"pnpm --filter @autoeditor/server dev\" \"pnpm --filter @autoeditor/web dev\"",
+    "start": "pnpm --filter @autoeditor/web build && pnpm --filter @autoeditor/server start",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r --if-present test",
+    "test:e2e": "pnpm --filter @autoeditor/web test:e2e",
+    "material-prueba": "node scripts/generar-material-prueba.mjs",
+    "doctor": "node scripts/setup.mjs --check"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5",
+    "typescript": "~5.9.3"
+  }
+}

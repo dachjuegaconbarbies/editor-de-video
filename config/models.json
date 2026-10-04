@@ -1,0 +1,25 @@
+{
+  "$comment": "Modelos de Claude y transcripción. Precios en USD por millón de tokens (MTok). Edita aquí sin tocar código.",
+  "claude": {
+    "editor": "claude-opus-5-5",
+    "helper": "claude-sonnet-5-5",
+    "effort": "high",
+    "helperEffort": "low",
+    "maxAgentTurns": 40,
+    "serverSideFallback": true,
+    "models": [
+      { "id": "claude-opus-5-5", "label": "Claude Opus 5.5", "inputUsdPerMTok": 4, "outputUsdPerMTok": 20, "cacheReadUsdPerMTok": 0.2 },
+      { "id": "claude-sonnet-5-5", "label": "Claude Sonnet 5.5", "inputUsdPerMTok": 2, "outputUsdPerMTok": 10, "cacheReadUsdPerMTok": 0.2 },
+      { "id": "claude-fable-5-1", "label": "Claude Fable 5.1", "inputUsdPerMTok": 10, "outputUsdPerMTok": 50, "cacheReadUsdPerMTok": 0.25 },
+      { "id": "claude-haiku-4-5", "label": "Claude Haiku 4.5", "inputUsdPerMTok": 1, "outputUsdPerMTok": 5, "cacheReadUsdPerMTok": 0.1 }
+    ]
+  },
+  "transcription": {
+    "provider": "faster-whisper",
+    "model": "small",
+    "device": "auto",
+    "computeType": "int8",
+    "apiBaseUrl": "",
+    "apiModel": "whisper-1"
+  }
+}

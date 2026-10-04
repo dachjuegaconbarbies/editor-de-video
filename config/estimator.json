@@ -1,0 +1,14 @@
+{
+  "$comment": "Coeficientes base del estimador de tiempo (segundos). La calibración con renders reales se guarda en la base de datos y se aplica encima.",
+  "analyzePerMinute": 6,
+  "transcribePerMinute": 30,
+  "planBase": 45,
+  "planPerMinute": 12,
+  "aiImage": 40,
+  "aiVideo": 150,
+  "aiAudio": 45,
+  "motionPerSecond": 6,
+  "renderPerSecond": 1.2,
+  "qaBase": 20,
+  "spread": 0.25
+}

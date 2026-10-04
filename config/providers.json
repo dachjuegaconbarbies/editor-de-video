@@ -1,0 +1,17 @@
+{
+  "$comment": "Proveedores externos. Kie AI cambia modelos y precios seguido: edítalos aquí. 'verified': false = campos aún no confirmados contra la documentación/llamada real.",
+  "kie": {
+    "baseUrl": "https://api.kie.ai",
+    "usdPerCredit": 0.005,
+    "pollIntervalMs": 4000,
+    "timeoutMs": 900000,
+    "maxRetries": 3,
+    "defaults": { "imagen": "", "video": "", "musica": "", "voz": "", "sfx": "" },
+    "models": []
+  },
+  "motion": {
+    "defaultEngine": "hyperframes",
+    "hyperframes": { "enabled": true, "command": "hyperframes", "timeoutMs": 300000 },
+    "remotion": { "enabled": false, "licenseNote": "Remotion requiere licencia de empresa a partir de 4 personas y compra de 'Renders' para renders automatizados. Apagado por defecto." }
+  }
+}
