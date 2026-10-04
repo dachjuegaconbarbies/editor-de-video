@@ -144,6 +144,22 @@ export function AssetRow({ asset }: { asset: Asset }) {
         />
       </div>
       <div className="ae-asset__side">
+        {isRawVideo && asset.analysis.status === "listo" && (
+          <label className="ae-rolepick" title={ROLE_HELP}>
+            <span>Toma</span>
+            <select
+              className="ae-input ae-select ae-input--sm"
+              value={asset.analysis.role}
+              aria-label={`Tipo de toma de ${asset.originalName}`}
+              onChange={(e) => void controller.updateAsset(asset.id, { role: e.target.value as Asset["analysis"]["role"] })}
+            >
+              <option value="a-roll">A-roll (habla)</option>
+              <option value="b-roll">B-roll (apoyo)</option>
+              <option value="mixto">Mixto</option>
+              <option value="desconocido">Sin clasificar</option>
+            </select>
+          </label>
+        )}
         {isRawVideo && (
           <Segmented
             size="sm"

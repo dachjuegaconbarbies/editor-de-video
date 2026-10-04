@@ -71,6 +71,8 @@ export function AutoEditor({ apiBaseUrl = "/api/v1", ownerId, headers, onEvent, 
   }, []);
 
   const [portal, setPortal] = useState<HTMLDivElement | null>(null);
+  /** Mientras se resuelve la ruta inicial mostramos un cargador (evita ver el inicio un instante). */
+  const [booted, setBooted] = useState(false);
 
   const ctx = useMemo(() => ({ store: instance.store, controller: instance.controller, getApi: instance.getApi }), [instance]);
 
@@ -93,6 +95,7 @@ export function AutoEditor({ apiBaseUrl = "/api/v1", ownerId, headers, onEvent, 
       if (projectId) await controller.openProject(projectId);
       else if (fromHash?.name === "editor") await controller.openProject(fromHash.projectId);
       else if (st.demo && !fromHash) await controller.openProject(DEMO_PROJECT_ID);
+      if (alive) setBooted(true);
     })();
     return () => {
       alive = false;
@@ -128,7 +131,7 @@ export function AutoEditor({ apiBaseUrl = "/api/v1", ownerId, headers, onEvent, 
       <MotionConfig reducedMotion="user">
         <PortalContext.Provider value={portal}>
           <EditorProvider value={ctx}>
-            <Screens onDemo={() => void enterDemo()} onRetry={() => void instance.controller.init()} />
+            {booted ? <Screens onDemo={() => void enterDemo()} onRetry={() => void instance.controller.init()} /> : <BootScreen />}
             <ToastLayer />
           </EditorProvider>
         </PortalContext.Provider>
@@ -142,6 +145,19 @@ function Screens({ onDemo, onRetry }: { onDemo: () => void; onRetry: () => void 
   const { route, hasProject } = useEditorShallow((s) => ({ route: s.route, hasProject: !!s.project }));
   if (route.name === "editor" && hasProject) return <EditorScreen />;
   return <HomeScreen onDemo={onDemo} onRetry={onRetry} />;
+}
+
+function BootScreen() {
+  return (
+    <div className="ae-boot" role="status" aria-live="polite">
+      <span className="ae-logo__mark ae-boot__mark" aria-hidden>
+        <span />
+        <span />
+        <span />
+      </span>
+      <span className="ae-boot__text">Abriendo Autoeditor…</span>
+    </div>
+  );
 }
 
 function ToastLayer() {

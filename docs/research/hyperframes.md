@@ -4,6 +4,12 @@
 > Todo lo marcado **VERIFICADO** se ejecutó en este contenedor. Lo marcado **NO VERIFICADO** viene de la documentación o del código y no se pudo probar aquí.
 > Carpeta de pruebas: `/tmp/claude-0/-home-user-editor-de-video/f6f89765-a86b-5bf9-b268-9519fd86e804/scratchpad/research-hyperframes/` (de aquí en adelante, `$SCRATCH`).
 
+> **Revisión crítica (2026-10-04, segunda mirada).** Cambios marcados con **[REVISIÓN]** en el texto:
+> - **Corregido §12:** las skills de HyperFrames **no** viajan con el repo. `.agents/skills/` y `.claude/skills/` están en `.gitignore`; se restauran con `pnpm instalar`, y esa restauración hoy solo llena `.agents/skills/` (Claude Code no las ve; ver `skills-remotion-warp.md` §5.6).
+> - **Verificado:** `HYPERFRAMES_FFMPEG_PATH` sí lo respeta el engine. `doctor` lo reporta y una ruta falsa da `✗ Configured path does not exist`. En el código, el engine lo lee de `process.env` dentro de `getFfmpegBinary()`, aparte de `producerConfig`, así que sigue valiendo aunque se pase `producerConfig`.
+> - **Verificado:** el "byte a byte" de §2.2. `md5sum` da lo mismo (`60465d07…`) para el Chrome 152 descargado, el headless_shell de Playwright y el Chromium completo.
+> - **Nuevo, para la Mac del usuario:** el `ffmpeg` de Homebrew (9.0.2 al 2026-10-04) trae libvpx y ProRes, así que HyperFrames funciona con él. Si se instala `ffmpeg-full` (necesario para los subtítulos, ver `media-pipeline.md` §14.1), es *keg-only* y no queda en el `PATH`: hay que pasar `HYPERFRAMES_FFMPEG_PATH` y `HYPERFRAMES_FFPROBE_PATH`, o poner su `bin` en el `PATH` del worker.
+
 ## 0. Veredicto
 
 **HyperFrames cumple los 4 objetivos y queda VERIFICADO en el contenedor:**
@@ -55,7 +61,7 @@
 | Requisito | Detalle | Estado |
 |---|---|---|
 | Node | `engines: { node: ">=22" }` en CLI, producer y engine | VERIFICADO con 22.22.0 |
-| ffmpeg / ffprobe | Usa el del `PATH`. Se puede forzar con `HYPERFRAMES_FFMPEG_PATH` / `HYPERFRAMES_FFPROBE_PATH` | VERIFICADO con `/usr/bin/ffmpeg` 6.1.1 (override NO VERIFICADO) |
+| ffmpeg / ffprobe | Usa el del `PATH`. Se puede forzar con `HYPERFRAMES_FFMPEG_PATH` / `HYPERFRAMES_FFPROBE_PATH` | VERIFICADO con `/usr/bin/ffmpeg` 6.1.1. **[REVISIÓN]** Override VERIFICADO con `doctor` (ruta falsa → `✗`, `/usr/bin/ffmpeg` → `✓`); render con override no probado |
 | Chrome | Prefiere **chrome-headless-shell**, que permite la captura determinista `HeadlessExperimental.beginFrame` en Linux | VERIFICADO |
 | GSAP | Es el runtime de animación por defecto. **Debe cargarse local** (ver §8) | VERIFICADO |
 | RAM | Cada worker lanza un Chrome (~256 MB según la ayuda del CLI). Con ≤ 8 GB activa "low-memory mode" (1 worker) | Documentado |
@@ -76,7 +82,7 @@ export HYPERFRAMES_BROWSER_PATH=/opt/pw-browsers/chromium_headless_shell-1194/ch
 npx hyperframes doctor   # → "✓ Chrome  env: /opt/pw-browsers/.../headless_shell"
 ```
 
-- **Headless shell:** mp4 (beginframe), webm con alfa y API con `chromePath` funcionan, y salen **byte a byte iguales** que con el Chrome 152 descargado (mismo tamaño, 352 775 B).
+- **Headless shell:** mp4 (beginframe), webm con alfa y API con `chromePath` funcionan, y salen **byte a byte iguales** que con el Chrome 152 descargado (mismo tamaño, 352 775 B). **[REVISIÓN]** Confirmado con `md5sum`: `overlay.mp4`, `pw_headless.mp4` y `fullchrome.mp4` dan `60465d07abf8f4ddf90f4b5c0d0e4f37`.
 - **Chromium completo** (`/opt/pw-browsers/chromium-1194/chrome-linux/chrome`): también renderiza, pero BeginFrame falla (`'HeadlessExperimental.enable' wasn't found`) y cae al modo screenshot, más lento (12.7 s contra 8.6 s). **Conviene usar el headless_shell.**
 - **Descarga propia:** `npx hyperframes browser ensure` descargó Chrome Headless Shell **152.0.7977.30** (114 MB, ~6 s) desde storage.googleapis.com, que **sí es alcanzable** desde el contenedor. Queda en `~/.cache/hyperframes/chrome` (261 MB descomprimido).
 
@@ -613,7 +619,8 @@ Alternativa sin ffmpeg: meter el video base en la composición (§6.4). Es útil
 | Claude Code | `.claude/skills/` | `~/.claude/skills/` |
 | **Warp** (tabla interna de `skills`) | **`.agents/skills/`** | `~/.agents/skills/` |
 
-- El repo **ya tiene** las skills instaladas, aunque no las instalé yo: lo hizo otro agente a las 08:39. Están en `.agents/skills/` con symlinks en `.claude/skills/` y `skills-lock.json`, más 7 bloques del registry como skills (`canopy-part-title`, `glass-shard-title`…). Con esto **Claude Code y Warp las ven al bajar el repo a local**.
+- El repo **ya tiene** las skills instaladas, aunque no las instalé yo: lo hizo otro agente a las 08:39. Están en `.agents/skills/` con symlinks en `.claude/skills/` y `skills-lock.json`, más 7 bloques del registry como skills (`canopy-part-title`, `glass-shard-title`…).
+  - **[REVISIÓN] Corrección:** esto vale **solo para este contenedor**. `.agents/skills/` y `.claude/skills/` están en `.gitignore` (`git ls-files .agents .claude` no devuelve nada). Al clonar el repo en local **solo llega `skills-lock.json`**, y las skills se restauran con `pnpm instalar`. Hoy esa restauración (`skills experimental_install`) llena solo `.agents/skills/`: Warp las ve, pero **Claude Code no**. La corrección está en `skills-remotion-warp.md` §5.6.
 - **Instalación no interactiva para agentes o CI:** `npx hyperframes skills update [nombre]`.
   - Por dentro ejecuta `npx skills add https://github.com/heygen-com/hyperframes --skill … --global --agent claude-code universal --copy --full-depth --yes`.
   - Instala **global**, y solo el set núcleo más lo que se pida.
@@ -678,7 +685,8 @@ Alternativa sin ffmpeg: meter el video base en la composición (§6.4). Es útil
 - [ ] macOS y Windows (destino local con Warp). Según la doc usan modo screenshot por defecto, y `browser ensure` descarga el binario de cada plataforma.
 - [ ] Audio dentro de overlays webm (Opus) y mapeo `-map 0:a?` al componer.
 - [ ] fps distintos de 24/30/60 (la ayuda del CLI acepta 1–240 y racionales como `30000/1001`), atributo `data-fps` en el root, formato 4:5.
-- [ ] `data-var-src`, `fitTextFontSize`, `pretext`, `@hyperframes/player`, `lintHyperframeHtml` desde código, `HYPERFRAMES_FFMPEG_PATH`.
+- [ ] `data-var-src`, `fitTextFontSize`, `pretext`, `@hyperframes/player`, `lintHyperframeHtml` desde código. (`HYPERFRAMES_FFMPEG_PATH`: **[REVISIÓN]** verificado con `doctor`; falta un render completo con el override.)
+- [ ] **[REVISIÓN]** Render con el ffmpeg 9.x de Homebrew (`ffmpeg` o `ffmpeg-full`). El engine avisa que sin el filtro `psnr` cae del modo "fast capture" a otro más lento; no se midió cuánto.
 - [ ] `hyperframes transcribe` (whisper-cpp no instalado), `tts` y `remove-background`.
 - [ ] Rendimiento en piezas largas (más de 10 s) o con muchos `<video>`.
 

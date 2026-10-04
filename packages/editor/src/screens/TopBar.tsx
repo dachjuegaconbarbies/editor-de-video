@@ -99,7 +99,7 @@ function EstimateChip() {
 export function TopBar({ onHome }: { onHome: () => void }) {
   const controller = useController();
   const { canUndo, canRedo } = useHistory();
-  const { set, requestView } = useActions();
+  const { set } = useActions();
   const panel = useEditor((s) => s.panel);
   const rulesCount = useEditor((s) => s.rules.filter((r) => r.enabled).length);
   const job = useActiveJob();
@@ -107,6 +107,7 @@ export function TopBar({ onHome }: { onHome: () => void }) {
   const demo = useEditor((s) => s.demo);
   const block = warnings.find((w) => w.severity === "bloqueo");
   const busy = !!job && (job.status === "corriendo" || job.status === "en-cola");
+  const waitingPlan = job?.status === "esperando";
   return (
     <header className="ae-topbar">
       <div className="ae-topbar__left">
@@ -136,16 +137,13 @@ export function TopBar({ onHome }: { onHome: () => void }) {
         <EstimateChip />
         <PurpleButton
           icon={<WandSparkles size={16} aria-hidden />}
-          disabled={!!block || busy}
+          disabled={!!block || busy || waitingPlan}
           loading={busy}
-          title={block?.text ?? (busy ? "Ya se está generando." : "Generar (Ctrl+Enter)")}
-          onClick={() => {
-            void controller.generate();
-            requestView("resultado");
-          }}
+          title={block?.text ?? (busy ? "Ya se está generando." : waitingPlan ? "Primero revisa y aprueba el plan." : "Generar (Ctrl+Enter)")}
+          onClick={() => void controller.generate()}
           className="ae-topbar__generate"
         >
-          {busy ? "Generando…" : "Generar"}
+          {busy ? "Generando…" : waitingPlan ? "Revisa el plan" : "Generar"}
         </PurpleButton>
       </div>
     </header>

@@ -130,7 +130,9 @@ export function buildGraph(input: GraphInput): Graph {
   const job = isActive(activeJob) ? activeJob : null;
   const hasPlan = settings.instruction.reviewPlan;
   const sorted = [...versions].sort((a, b) => a.number - b.number);
-  const correcting = !!job && job.type !== "generar" && sorted.length > 0;
+  // Con versiones existentes, cualquier trabajo que crea una versión (generar de nuevo, corregir,
+  // re-render) se muestra como una tarjeta "Vn · en proceso".
+  const correcting = !!job && sorted.length > 0 && (job.type === "generar" || job.type === "corregir" || job.type === "re-render");
   const resultId = sorted.length === 0 ? "resultado" : correcting ? "version-pendiente" : `version-${sorted[sorted.length - 1]!.id}`;
   const processingId = job ? (processingNodeFor(job.stage, hasPlan, resultId) ?? (job.type === "generar" ? resultId : null)) : null;
 
@@ -225,14 +227,25 @@ export function buildGraph(input: GraphInput): Graph {
       latest: v.id === latestId && !correcting,
     };
     nodes.push({ id, type: "version", ...ESTIMATED_SIZES.version, data });
-    // Se conecta desde su versión madre (si está visible o apilada); si no, desde la anterior.
+    // Se conecta desde su versión madre (si está visible o apilada). Una versión sin madre es una
+    // generación nueva: sale de INSTRUCCIÓN (o del PLAN).
     const parentNode = v.parentId ? nodeIdOf.get(v.parentId) : undefined;
-    const source = parentNode ?? (i === 0 ? prev : `version-${visible[i - 1]!.id}`);
+    const source = parentNode ?? (!v.parentId && v.number > 1 ? tail : i === 0 ? prev : `version-${visible[i - 1]!.id}`);
     edges.push(edge(source, id, v.correction ? { label: v.correction } : {}));
     nodeIdOf.set(v.id, id);
   });
 
-  if (correcting && job) {
+  if (correcting && job && job.type === "generar") {
+    const data: ResultNodeData = {
+      ...base("resultado", "version-pendiente"),
+      status: job.status === "esperando" ? "esperando" : "procesando",
+      hint: job.message || "Generando una versión nueva…",
+      mode: "pendiente",
+      nextNumber: sorted[sorted.length - 1]!.number + 1,
+    };
+    nodes.push({ id: "version-pendiente", type: "resultado", ...ESTIMATED_SIZES.resultado, data });
+    edges.push(edge(tail, "version-pendiente", { animated: true }));
+  } else if (correcting && job) {
     const fromVersion = typeof job.input.versionId === "string" ? job.input.versionId : latestId;
     const correction = typeof job.input.text === "string" ? job.input.text : typeof job.input.correction === "string" ? job.input.correction : undefined;
     const data: ResultNodeData = {

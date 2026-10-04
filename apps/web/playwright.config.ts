@@ -21,6 +21,8 @@ export default defineConfig({
     baseURL: `http://127.0.0.1:${PORT}`,
     locale: "es-MX",
     trace: "retain-on-failure",
+    // Las fuentes de Google pasan por un proxy con certificado propio en algunos entornos.
+    ignoreHTTPSErrors: true,
     launchOptions: executablePath ? { executablePath } : {},
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 }, launchOptions: executablePath ? { executablePath } : {} } }],

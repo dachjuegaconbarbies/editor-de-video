@@ -91,11 +91,15 @@ function PlanBody({ focus }: { focus?: boolean }) {
               data-autofocus
             />
           )}
-          <div className="ae-row">
+          <div className="ae-plan__actions">
+            <PurpleButton size="md" block icon={<WandSparkles size={15} />} onClick={() => void controller.approvePlan(plan.id)} className="nodrag">
+              Aprobar y renderizar
+            </PurpleButton>
             {asking ? (
               <Button
                 tone="coral"
                 size="sm"
+                block
                 icon={<Send size={14} />}
                 disabled={!feedback.trim()}
                 className="nodrag"
@@ -108,13 +112,10 @@ function PlanBody({ focus }: { focus?: boolean }) {
                 Enviar ajuste
               </Button>
             ) : (
-              <Button tone="ghost" size="sm" onClick={() => setAsking(true)} className="nodrag">
-                Pedir ajustes
+              <Button tone="ghost" size="sm" block onClick={() => setAsking(true)} className="nodrag">
+                Pedir ajustes con texto
               </Button>
             )}
-            <PurpleButton size="sm" icon={<WandSparkles size={14} />} onClick={() => void controller.approvePlan(plan.id)} className="nodrag ae-grow">
-              Aprobar y renderizar
-            </PurpleButton>
           </div>
         </>
       )}

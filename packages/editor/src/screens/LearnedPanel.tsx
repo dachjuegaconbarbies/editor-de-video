@@ -73,9 +73,11 @@ function DrawerBody({ onClose }: { onClose: () => void }) {
                     {SCOPE_LABELS[r.scope]}
                   </Chip>
                   <span>{SOURCE_LABELS[r.source.type]}</span>
-                  {r.source.excerpt && <span className="ae-rule__excerpt">“{r.source.excerpt}”</span>}
-                  <span>· {formatRelative(r.updatedAt)}</span>
-                  {r.timesApplied > 0 && <span>· aplicada {r.timesApplied} veces</span>}
+                </div>
+                {r.source.excerpt && <div className="ae-rule__excerpt">“{r.source.excerpt}”</div>}
+                <div className="ae-rule__foot">
+                  {formatRelative(r.updatedAt)}
+                  {r.timesApplied > 0 && ` · aplicada ${r.timesApplied} ${r.timesApplied === 1 ? "vez" : "veces"}`}
                 </div>
               </div>
               <div className="ae-rule__actions">

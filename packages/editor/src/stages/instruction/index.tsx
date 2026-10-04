@@ -317,8 +317,9 @@ export function GenerateButton({ size = "lg" }: { size?: "md" | "lg" }) {
   const { connected, hasVersions } = useEditorShallow((s) => ({ connected: s.connection === "conectado" || s.demo, hasVersions: s.versions.length > 0 }));
   const block = warnings.find((w) => w.severity === "bloqueo");
   const busy = !!job && (job.status === "corriendo" || job.status === "en-cola");
-  const disabled = !!block || busy || !connected;
-  const reason = busy ? "Ya se está generando." : block ? block.text : !connected ? "Sin conexión con el servidor." : undefined;
+  const waitingPlan = job?.status === "esperando";
+  const disabled = !!block || busy || waitingPlan || !connected;
+  const reason = busy ? "Ya se está generando." : waitingPlan ? "Primero revisa y aprueba el plan." : block ? block.text : !connected ? "Sin conexión con el servidor." : undefined;
   return (
     <div className="ae-generate">
       <PurpleButton size={size} block icon={<WandSparkles size={18} aria-hidden />} disabled={disabled} loading={busy} onClick={() => void controller.generate()} title={reason} className="ae-generate__btn nodrag">

@@ -168,8 +168,9 @@ export function createController(store: EditorStore, getApi: () => ApiClient, op
         if (event.type === "version.created") {
           emit({ type: "version.creada", projectId, detail: event.version });
           s().toast({ kind: "exito", text: `V${event.version.number} está lista.` });
+          if (!s().focus) s().requestView(event.version.number === 1 ? "resultado" : "versiones");
         }
-        if (event.type === "plan.ready") s().set({ activeStage: "plan" });
+        if (event.type === "plan.ready" && !s().focus) s().requestView("plan");
         if (event.type === "job.updated" && event.job.status === "error") s().toast({ kind: "error", text: event.job.error ?? "Falló un paso del proceso." });
       },
       onStatus: (stream) => s().set({ stream }),
@@ -219,7 +220,9 @@ export function createController(store: EditorStore, getApi: () => ApiClient, op
       } catch (err) {
         if (disposed) return;
         s().set({ connection: "sin-conexion", projectsLoaded: true });
-        if (!(err instanceof ApiRequestError && err.isNetwork)) s().toast({ kind: "error", text: messageOf(err) });
+        // Red caída o proxy sin servidor (5xx): basta con el aviso discreto del inicio.
+        const quiet = err instanceof ApiRequestError && (err.isNetwork || err.status >= 500);
+        if (!quiet) s().toast({ kind: "error", text: messageOf(err) });
       }
     },
 
@@ -341,9 +344,12 @@ export function createController(store: EditorStore, getApi: () => ApiClient, op
       return uploaded;
     },
 
-    async updateAsset(assetId: string, body: { note?: string; priority?: Asset["priority"] }) {
+    async updateAsset(assetId: string, body: { note?: string; priority?: Asset["priority"]; role?: Asset["analysis"]["role"] }) {
       const before = s().assets.find((a) => a.id === assetId);
-      if (before) s().upsertAsset({ ...before, ...body });
+      if (before) {
+        const { role, ...rest } = body;
+        s().upsertAsset({ ...before, ...rest, analysis: role ? { ...before.analysis, role } : before.analysis });
+      }
       try {
         s().upsertAsset(await api().updateAsset(assetId, body));
       } catch (err) {
@@ -366,11 +372,13 @@ export function createController(store: EditorStore, getApi: () => ApiClient, op
     async generate() {
       const project = s().project;
       if (!project) return;
+      const active = s().activeJobId ? s().jobs[s().activeJobId!] : null;
+      if (active && (active.status === "corriendo" || active.status === "en-cola" || active.status === "esperando")) return;
       await flushSave();
       try {
         const job = await api().generate(project.id);
         s().upsertJob(job);
-        s().set({ activeStage: s().settings.instruction.reviewPlan ? "plan" : "resultado" });
+        s().requestView(s().settings.instruction.reviewPlan ? "plan" : "resultado");
         emit({ type: "generacion.iniciada", projectId: project.id, detail: job });
       } catch (err) {
         fail(err, "No se pudo generar");
@@ -420,7 +428,7 @@ export function createController(store: EditorStore, getApi: () => ApiClient, op
       try {
         const job = await api().correct(versionId, { text, at });
         s().upsertJob({ ...job, input: { versionId, text, ...job.input } });
-        s().set({ activeStage: "versiones" });
+        s().requestView("versiones");
         emit({ type: "correccion.enviada", projectId: s().project?.id, detail: { versionId, text } });
         return true;
       } catch (err) {

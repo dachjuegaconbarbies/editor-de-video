@@ -100,7 +100,10 @@ test("demo: etapas visibles, TENGO GUION se despliega y nada se encima", async (
 test("demo: vista enfocada de MATERIAL con doble clic y Esc", async ({ page }) => {
   await page.goto("/?demo-ui=1");
   await expect(page.locator(".ae-flow.is-ready")).toBeVisible();
-  await page.getByRole("button", { name: "Abrir Material en grande" }).click();
+  // El stepper lleva a la etapa (el lienzo se mueve) y desde ahí se abre en grande.
+  await page.getByRole("navigation", { name: "Etapas del flujo" }).getByRole("button", { name: /Material/ }).click();
+  await page.waitForTimeout(600);
+  await page.locator('.react-flow__node[data-id="material"] .ae-stage__tab').dblclick();
   const dialog = page.getByRole("dialog", { name: /Material en vista enfocada/ });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByText("entrevista-barista.mp4")).toBeVisible();

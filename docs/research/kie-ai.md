@@ -4,6 +4,13 @@
 > **Estado:** investigación de escritorio, más código TypeScript compilado y probado **contra un servidor simulado**. **No se hizo ninguna llamada real a Kie**: el contenedor no llega a `kie.ai` y no hay `KIE_API_KEY` (ver §10).
 > Todo lo marcado **NO VERIFICADO** hay que confirmarlo con la primera llamada real. La receta para hacerlo en local (Warp) está en §11.
 
+> **Revisión crítica (2026-10-04).** Cambios marcados con **[REVISIÓN]**:
+> - **Bug corregido en el adaptador (§9.2):** reintentaba `createTask` ante errores de red o timeout, con riesgo de **doble cobro**. Corregido y probado contra el mock.
+> - **Riesgo con Suno (§9.2):** la `callBackUrl` placeholder podría dejar la tarea en `CALLBACK_EXCEPTION` aunque el audio exista. Ahora se acepta como éxito si hay `audio_url` (NO VERIFICADO con la API).
+> - **Hueco: la skill de Kie (`npx skills add https://kie.ai`, `PROMPT.md` §4.4) no estaba investigada.** Según el código del CLI `skills@1.7.0` (`dist/cli.mjs`), con una URL que no es de git el CLI busca `https://kie.ai/.well-known/agent-skills/index.json` (o `/.well-known/skills/`) y, si no existe, intenta descarga directa. **Qué instala está NO VERIFICADO**: `kie.ai` está bloqueado aquí y la búsqueda web no dio nada. Hay que tener claro que es una skill **para agentes** (Claude Code/Warp), no código que use la app en runtime: el adaptador de §9 no depende de ella. `scripts/setup.mjs` la corre con `--yes` pero sin `-a claude-code`, así que probablemente termina solo en `.agents/skills/`, con el mismo problema que HyperFrames (`skills-remotion-warp.md` §5.6). Además, no queda registrada en `skills-lock.json` (hoy solo tiene `heygen-com/hyperframes`).
+> - **Faltan variables en `.env.example`** para lo que usa este documento: `KIE_CALLBACK_URL` (URL pública de callbacks; vacía = solo polling) y `KIE_WEBHOOK_HMAC_KEY` (para `verifyKieWebhook`).
+> - Sigue sin haber **ninguna llamada real** a Kie: todo lo demás conserva su etiqueta original.
+
 ---
 
 ## 0. Resumen (lo que hay que saber antes de programar)
@@ -84,7 +91,7 @@ La llave se crea en `https://kie.ai/api-key`. Según la documentación, la conso
 | 501 | Generación fallida | No reenviar igual; quizá con otros parámetros |
 | 505 | Función deshabilitada ([PKG:kie-mcp][PKG:nodetool]; NO VERIFICADO en doc) | No |
 
-**Cobro:** el costo se genera al crear la tarea. Consultar es gratis. kie-mcp observó créditos **retenidos al enviar y reembolsados** cuando la tarea falló río arriba. **Regla:** un error HTTP *al crear* no generó `taskId`, así que se puede reintentar. Un error *al consultar* no mata la tarea, así que se sigue consultando y nunca se reenvía. [PKG:dainami][PKG:kie-mcp]
+**Cobro:** el costo se genera al crear la tarea. Consultar es gratis. kie-mcp observó créditos **retenidos al enviar y reembolsados** cuando la tarea falló río arriba. **Regla:** un error HTTP *explícito* (con envoltorio `{code,msg}`) *al crear* no generó `taskId`, así que se puede reintentar. Un error *al consultar* no mata la tarea, así que se sigue consultando y nunca se reenvía. [PKG:dainami][PKG:kie-mcp] **[REVISIÓN]** Una falla de red o un timeout *al crear* es ambigua: la petición pudo llegar. No se reintenta en automático (ver §9.2).
 
 ### 2.4 Límites de tasa
 
@@ -979,7 +986,7 @@ Flujo con reintentos (trabajo en segundo plano que sobrevive a reinicios, PROMPT
 
 1. `estimate`: mostrar el costo y cortar si `credits > presupuesto del proyecto`. Opcionalmente `GET /chat/credit` para avisar antes de un 402.
 2. Subir referencias locales (con caché por hash y TTL de 3 días).
-3. `submit` → guardar en BD `{jobId, providerTaskId, family, modelId, input, estimatedCredits, status:"submitted"}`. Si falla al crear: reintentar solo con 429, 455, 5xx o error de red (no hubo `taskId`).
+3. `submit` → guardar en BD `{jobId, providerTaskId, family, modelId, input, estimatedCredits, status:"submitted"}`. Si falla al crear: reintentar solo con 429, 455 o 5xx **con envoltorio JSON** (no hubo `taskId`). **[REVISIÓN]** Un error de red, un timeout, un 502/504 o un cuerpo no JSON al crear **no** se reintenta: es ambiguo (la tarea pudo crearse y cobrarse). Se marca como `creacion_incierta`, se avisa al usuario y se compara el saldo (`/chat/credit`) antes de permitir un "Reintentar" manual.
 4. Polling (`waitFor`) o callback. Al reiniciar el servidor, **reanudar** todas las tareas `submitted` consultando su `taskId` (nunca reenviar).
 5. `success` → **descargar de inmediato** los `resultUrls` al almacenamiento propio (sin header de auth; reintentar la descarga ante 5xx, porque el resultado ya está pagado). Guardar `prompt`, `model`, `seed` e `input` completo en la receta (PROMPT §4.9: "guarda prompts, modelos y semillas").
 6. `fail` → mostrar `failMsg`, permitir "Reintentar" (que crea una tarea **nueva** con confirmación del costo) o cambiar a un modelo de respaldo (consultar `success-rate`).
@@ -987,6 +994,10 @@ Flujo con reintentos (trabajo en segundo plano que sobrevive a reinicios, PROMPT
 8. La llave solo vive en el backend (`KIE_API_KEY` en `.env`). Nunca se expone al navegador.
 
 ### 9.2 `kie-client.ts` (compilado con `tsc --strict` y probado contra el mock de §10)
+
+> **[REVISIÓN]** Versión corregida por la revisión crítica, compilada con `tsc` (`strict`, `noUncheckedIndexedAccess`) y probada contra el mock de §10 más 3 casos nuevos (`scratchpad/research-critic/kie/`):
+> 1. **Antes, `request()` reintentaba cualquier error de red o timeout también en `createTask`.** Si la petición llegó a Kie pero la respuesta se perdió (timeout de 30 s, conexión cortada, 502/504, HTML de gateway), el reintento creaba y **cobraba una segunda tarea**, contra la regla de §0.10 y §2.3. Ahora un fallo **ambiguo** solo se reintenta en GET. En un POST de creación se propaga, y el trabajo debe quedar como "creación incierta": avisar, consultar el saldo, nunca reenviar en automático. Los errores explícitos con envoltorio (429, 455, 5xx con `code`) se siguen reintentando. Verificado: un corte de red en `createTask` da 1 sola llamada y un corte en `recordInfo` se reintenta (2 llamadas).
+> 2. **Suno exige `callBackUrl`, y `buildRequest` manda el placeholder `https://example.invalid/...`.** Si Kie no puede entregar el callback y marca `CALLBACK_EXCEPTION`, el normalizador anterior daba `fail` aunque el audio ya existiera (pagado). Ahora `CALLBACK_EXCEPTION` con `audio_url` cuenta como `success`. Es defensivo: **NO VERIFICADO** que Kie use ese estado así. En servidor, lo mejor es mandar una `callBackUrl` real (`KIE_CALLBACK_URL`).
 
 ```ts
 // Adaptador mínimo para Kie AI (kie.ai). Sin dependencias: usa fetch nativo de Node 22.
@@ -1015,7 +1026,8 @@ export interface NormalizedTask {
   raw: unknown;
 }
 
-/** 429/455/5xx y fallos de red se reintentan; 400/401/402/404/422/433/505 no. */
+/** 429/455/5xx y fallos de red se reintentan; 400/401/402/404/422/433/505 no.
+ *  `ambiguous` = no sabemos si Kie procesó la petición (red caída, timeout, 502/504, cuerpo no JSON). */
 export class KieApiError extends Error {
   constructor(
     message: string,
@@ -1023,6 +1035,7 @@ export class KieApiError extends Error {
     readonly httpStatus: number,
     readonly retryable: boolean,
     readonly body: unknown,
+    readonly ambiguous = false,
   ) {
     super(message);
     this.name = "KieApiError";
@@ -1074,14 +1087,22 @@ export class KieClient {
     this.retryBaseMs = opts.retryBaseMs ?? 2_000;
   }
 
-  /** Una petición JSON con reintentos. Kie señala errores con HTTP != 200 *o* con HTTP 200 + code != 200. */
-  async request<T>(method: "GET" | "POST", path: string, body?: unknown): Promise<KieEnvelope<T>> {
+  /**
+   * Una petición JSON con reintentos. Kie señala errores con HTTP != 200 *o* con HTTP 200 + code != 200.
+   * Un fallo AMBIGUO (red, timeout, 502/504, cuerpo no JSON) solo se reintenta si la petición es idempotente
+   * (por defecto: GET). En un POST de creación podría haberse creado y cobrado la tarea: NO se reintenta;
+   * el llamador debe marcar el trabajo como "creación incierta" y avisar, nunca reenviar en automático.
+   */
+  async request<T>(method: "GET" | "POST", path: string, body?: unknown, o: { retryAmbiguous?: boolean } = {}): Promise<KieEnvelope<T>> {
+    const retryAmbiguous = o.retryAmbiguous ?? method === "GET";
     let attempt = 0;
     for (;;) {
       try {
         return await this.once<T>(method, path, body);
       } catch (err) {
-        const retryable = err instanceof KieApiError ? err.retryable : true; // red/timeout
+        const isKie = err instanceof KieApiError;
+        const ambiguous = !isKie || err.ambiguous; // !isKie = red/timeout de fetch
+        const retryable = ambiguous ? retryAmbiguous : isKie && err.retryable;
         if (!retryable || attempt >= this.maxRetries) throw err;
         const delay = this.retryBaseMs * 2 ** attempt + Math.floor(Math.random() * 250);
         attempt++;
@@ -1106,12 +1127,12 @@ export class KieClient {
       json = JSON.parse(text) as KieEnvelope<T>;
     } catch {
       // Observado en estados intermedios de recordInfo y en 502 de gateway (HTML).
-      throw new KieApiError(`Respuesta no JSON (HTTP ${res.status}): ${text.slice(0, 200)}`, res.status, res.status, true, text);
+      throw new KieApiError(`Respuesta no JSON (HTTP ${res.status}): ${text.slice(0, 200)}`, res.status, res.status, true, text, true);
     }
     const code = res.status !== 200 ? res.status : typeof json.code === "number" ? json.code : 200;
     if (code !== 200) {
       const msg = json.msg ?? "";
-      throw new KieApiError(`Kie ${code}: ${msg}`, code, res.status, isRetryable(code, msg), json);
+      throw new KieApiError(`Kie ${code}: ${msg}`, code, res.status, isRetryable(code, msg), json, res.status === 502 || res.status === 504);
     }
     return json;
   }
@@ -1291,7 +1312,9 @@ export function normalizeSuno(taskId: string, d: Record<string, unknown>): Norma
     taskId,
     family: "suno",
     // Solo SUCCESS es final con URLs definitivas (FIRST_SUCCESS = 1ª pista lista).
-    state: status === "SUCCESS" ? "success" : failed ? "fail" : "generating",
+    // CALLBACK_EXCEPTION = Kie no pudo entregar el callback (p. ej. URL placeholder). Si ya hay audio, la generación
+    // sí terminó (defensivo, NO VERIFICADO con la API real): no tirar un resultado pagado.
+    state: status === "SUCCESS" || (status === "CALLBACK_EXCEPTION" && urls.length > 0) ? "success" : failed ? "fail" : "generating",
     resultUrls: urls,
     failMsg: d.errorMessage ? String(d.errorMessage) : failed ? status : undefined,
     raw: d,
@@ -1356,6 +1379,7 @@ const mr = await kie.waitFor("suno", m, { intervalMs: 10_000, timeoutMs: 15 * 60
 | Adaptador contra servidor HTTP simulado | `npx tsx src/mock-test.ts` | OK Pasan: header `Bearer`; cuerpo `{model,input}`; **reintento ante HTTP 200 + code 429**; polling `waiting → (respuesta no JSON tolerada) → generating → success`; `resultJson` string → `resultUrls`; `creditsConsumed`; **402 sin reintento**; `chat/credit`; subida multipart (`file`, `uploadPath`) → `downloadUrl`; normalizadores Veo (`successFlag`) y Suno (`audio_url`/`audioUrl`); firma de webhook idéntica a `verifyKieWebhookSignature` de `@apicity/kie` |
 | Configuración | `npx tsx src/estimate.ts` | OK JSON válido, 20 modelos, ids únicos, cada `default` mapeado en `params`, `estimate` = cálculo desde `pricing` (créditos y USD), defaults por tipo válidos; casos Seedance 480p con video (2.4 × 7) y TTS de 1500 caracteres (24) |
 | buildRequest | `npx tsx src/build-request.ts` | OK nano-banana-2 (seed ignorado, refs → `image_input`), Kling `duration` → string, Veo cuerpo plano con `seeds`, Suno con `callBackUrl`, Sounds → `soundLoop`; rechaza duración fuera de rango, modelo deshabilitado y prompt demasiado largo |
+| **[REVISIÓN]** Adaptador corregido | `npx tsc -p . && npx tsx src/mock-test.ts` en `scratchpad/research-critic/kie/` | OK: las pruebas originales siguen pasando. Corte de red en `createTask`: 1 sola llamada (sin reintento). Corte en `recordInfo`: reintentado (2 llamadas). Suno `CALLBACK_EXCEPTION` con `audio_url` da `success` |
 
 **Lo que NO se pudo probar, y por qué:**
 

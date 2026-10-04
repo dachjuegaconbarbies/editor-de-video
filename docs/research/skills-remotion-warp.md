@@ -11,13 +11,23 @@
 >
 > Carpeta de pruebas, fuera del repo: `/tmp/claude-0/-home-user-editor-de-video/f6f89765-a86b-5bf9-b268-9519fd86e804/scratchpad/research-skills-remotion-agentes/`. En adelante, `$SCRATCH`.
 
+> **Revisión crítica (2026-10-04).** Cambios marcados con **[REVISIÓN]**:
+> - **El validador de §2.4 dejaba pasar casos que claude.ai rechaza.** Lo comparé con el validador oficial de Anthropic (`skill-creator/scripts/quick_validate.py`, el que usa `package_skill.py`, presente en `/mnt/skills/examples/`):
+>   1. `description` no puede tener **ningún** `<` ni `>`, no solo etiquetas XML. `"voz > música"` pasaba con el nuestro y falla en el oficial: `Description cannot contain angle brackets`.
+>   2. El paquete debe tener **un solo `SKILL.md`**. Si `plantillas/` trae, por ejemplo, la carpeta de un bloque del registry de HyperFrames con su propio `SKILL.md`, el oficial lo rechaza: `Found 2 SKILL.md files … The Skills API and claude.ai reject multiple on upload`.
+>   3. `compatibility` tiene que ser texto.
+>   El código de §2.4 está corregido y probado contra los dos casos.
+> - **Confirmado (2026-10-04, 10:00):** el bug de §5.6 **sigue** en `scripts/setup.mjs` (paso 5). Además, el fallback `skills add heygen-com/hyperframes --full-depth --yes` va **sin `-a`**: según `dist/cli.mjs`, con `--yes` instala en los agentes *detectados* en la máquina más los universales, o en **todos** si no detecta ninguno. El resultado depende de la máquina. La línea de la skill de Kie (`skills add https://kie.ai --yes`) tiene el mismo problema.
+> - **Corregida una contradicción con `hyperframes.md` §12**, que decía que las skills "viajan con el repo". No viajan: están en `.gitignore` (§2.1 de este documento tenía razón).
+
 ## 0. Veredicto (lo que hay que saber)
 
 1. **Skill exportable que funcione en Claude Code, Warp y claude.ai.** Usa **solo los 6 campos de la spec Agent Skills** en el frontmatter: `name`, `description`, `license`, `compatibility`, `metadata` y `allowed-tools`.
    - Claude Code acepta más campos (`when_to_use`, `model`, `context`…).
    - claude.ai y la Skills API **rechazan con error** cualquier campo fuera de esos 6.
    - Reglas de `name`: hasta 64 caracteres, solo `[a-z0-9-]`, y sin las palabras "anthropic" ni "claude".
-   - Reglas de `description`: entre 1 y 1024 caracteres, sin etiquetas XML.
+   - Reglas de `description`: entre 1 y 1024 caracteres, sin etiquetas XML. **[REVISIÓN]** En la práctica, sin ningún `<` ni `>` (validador oficial).
+   - **[REVISIÓN]** Un solo `SKILL.md` por paquete: claude.ai rechaza los anidados.
 2. **Ubicación.** Claude Code solo busca skills en `.claude/skills/<nombre>/SKILL.md` (proyecto) y en `~/.claude/skills/<nombre>/SKILL.md` (personal).
    - **No lee `.agents/skills/`.** VERIFICADO: una skill que solo está en `.agents/skills/` no aparece en la sesión.
    - Warp lee las dos rutas, `.agents/skills/` y `.claude/skills/`.
@@ -72,7 +82,7 @@ Unexpected key(s) in SKILL.md frontmatter: argument-hint. Allowed properties are
 | Campo | Obligatorio | Regla |
 |---|---|---|
 | `name` | Sí (spec/API). En Claude Code es opcional: por defecto toma el nombre de la carpeta | Máx. **64** caracteres, solo minúsculas, números y guiones, sin etiquetas XML, sin las palabras reservadas **"anthropic"** ni **"claude"** |
-| `description` | Sí (spec/API). En Claude Code es "recomendado": si falta, usa la primera línea no vacía del cuerpo | No vacía, máx. **1024** caracteres, sin etiquetas XML. Debe decir **qué hace y cuándo usarla** |
+| `description` | Sí (spec/API). En Claude Code es "recomendado": si falta, usa la primera línea no vacía del cuerpo | No vacía, máx. **1024** caracteres, sin etiquetas XML (**[REVISIÓN]** `quick_validate.py` rechaza cualquier `<` o `>`). Debe decir **qué hace y cuándo usarla** |
 | `license` | No | Texto libre. Claude Code lo acepta y lo ignora |
 | `compatibility` | No | Hasta **500** caracteres. Claude Code lo ignora |
 | `metadata` | No | Mapa YAML libre para nuestras herramientas. Claude Code no actúa sobre él y lo descarta si no es un mapa. No hay que repetir ahí nombres de campos del frontmatter |
@@ -187,6 +197,7 @@ Notas:
 - **Recursos de marca y licencias:** en `metadata` y en `license` indica que las fuentes y logos son del usuario.
   - **No incluyas fuentes con licencia que prohíba redistribuirlas.** Pon un enlace a Google Fonts en `preset.json`.
 - Una carpeta exportada está bien con el tamaño típico. El zip debe quedar bajo **30 MB** si se quiere subir a claude.ai.
+- **[REVISIÓN]** Dentro del paquete no puede haber **otro `SKILL.md`**: no copiar a `plantillas/` carpetas de bloques del registry de HyperFrames tal como vienen (traen su `SKILL.md`). Basta con su `.html` y sus assets.
 - **El repo ignora `.agents/skills/` y `.claude/skills/` (`.gitignore`).** Los estilos exportados son datos del usuario: guárdalos en `data/estilos/<id>/skill/`, no en el repo. Para versionar en el futuro una skill propia del proyecto, hará falta una negación (`!.claude/skills/mi-skill/`).
 
 ### 2.2 Plantilla de `SKILL.md` que genera el editor
@@ -236,13 +247,15 @@ VERIFICADO con una copia de esta plantilla en `$SCRATCH/test-proyecto2/.claude/s
 
 Dependencia: `yaml@2`, la misma que usa el CLI `skills`. Probado en `$SCRATCH/loader-test/` con `node test.mjs`: roundtrip OK, detecta campo `version`, nombre con mayúsculas y descripción mayor a 1024, y el SKILL.md real de `hyperframes-core` pasa.
 
+**[REVISIÓN]** `validateFrontmatter` y `nestedSkillMds` corregidos y probados en `scratchpad/research-critic/val2.mjs`. Ahora detectan `voz > música`, `<1.5 s`, `compatibility` que no es texto y `plantillas/bloque/SKILL.md`, igual que `quick_validate.py`. Para la exportación, lo más seguro es correr también el validador oficial en las pruebas (`python3 quick_validate.py <carpeta>`, si está disponible).
+
 ```js
 import { parse, stringify } from 'yaml';
 
 // Campos permitidos por la spec de Agent Skills (claude.ai / Skills API / package_skill.py).
 export const SPEC_KEYS = ['name', 'description', 'license', 'compatibility', 'metadata', 'allowed-tools'];
 const NAME_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
-const XML_RE = /<\/?[a-zA-Z][^>]*>/;
+// [REVISIÓN] quick_validate.py oficial rechaza CUALQUIER '<' o '>' en description (no solo etiquetas XML).
 
 /** "Podcast dinámico!" -> "estilo-podcast-dinamico" (<= 64, sin palabras reservadas). */
 export function slugSkillName(nombre, prefijo = 'estilo') {
@@ -260,11 +273,26 @@ export function validateFrontmatter(fm) {
   if (typeof fm.description !== 'string' || !fm.description.trim()) errores.push('description: vacía');
   else {
     if (fm.description.length > 1024) errores.push(`description: ${fm.description.length} > 1024`);
-    if (XML_RE.test(fm.description)) errores.push('description: no puede tener etiquetas XML');
+    if (/[<>]/.test(fm.description)) errores.push('description: no puede tener < ni > (claude.ai/Skills API lo rechazan)');
   }
-  if (fm.compatibility && String(fm.compatibility).length > 500) errores.push('compatibility: > 500');
-  if (fm.metadata !== undefined && (typeof fm.metadata !== 'object' || Array.isArray(fm.metadata))) errores.push('metadata: debe ser un mapa');
+  if (fm.compatibility !== undefined && (typeof fm.compatibility !== 'string' || fm.compatibility.length > 500)) errores.push('compatibility: texto de máx. 500');
+  if (fm.metadata !== undefined && (typeof fm.metadata !== 'object' || fm.metadata === null || Array.isArray(fm.metadata))) errores.push('metadata: debe ser un mapa');
   return errores;
+}
+
+/** [REVISIÓN] claude.ai / Skills API rechazan un paquete con más de un SKILL.md
+ *  (igual que quick_validate.py: se excluyen node_modules, __pycache__ y evals/ en la raíz). Llamar antes de zipear. */
+// import { readdirSync } from 'node:fs'; import { join, relative, sep } from 'node:path';
+export function nestedSkillMds(dir, base = dir) {
+  const out = [];
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    const p = join(dir, e.name), rel = relative(base, p);
+    if (e.isDirectory()) {
+      if (e.name === 'node_modules' || e.name === '__pycache__' || (dir === base && e.name === 'evals')) continue;
+      out.push(...nestedSkillMds(p, base));
+    } else if (e.name === 'SKILL.md' && rel !== 'SKILL.md') out.push(rel.split(sep).join('/'));
+  }
+  return out; // debe quedar vacío
 }
 
 export function buildSkillMd(fm, body) {
@@ -576,6 +604,8 @@ Prueba: en `$SCRATCH/test-restore*` restauré con el `skills-lock.json` del repo
 2. Por cada carpeta de `.agents/skills/`, crear `.claude/skills/<n>`: symlink relativo en macOS/Linux, copia en Windows (`fs.cpSync(src, dst, { recursive: true })`).
 
 Y en `pnpm diagnostico`, comprobar `.claude/skills/hyperframes-core/SKILL.md`, no solo la ruta en `.agents`.
+
+**[REVISIÓN] Estado al 2026-10-04 10:00:** sin corregir. El paso 5 de `scripts/setup.mjs` solo comprueba `.agents/skills/hyperframes-core`. Su fallback y la instalación de la skill de Kie usan `--yes` sin `-a`, así que dependen de los agentes detectados (ver la nota de revisión al inicio). Corrección mínima: pasar siempre `-a claude-code -a warp` (más `--copy` en Windows) y, después de `experimental_install`, enlazar o copiar cada carpeta de `.agents/skills/` en `.claude/skills/`.
 
 Observación: el restore completo es lento. Cada entrada del lock tiene su propio `skillPath` y se convierte en una fuente distinta (`…hyperframes.git (skills/product-launch-video)`), así que hace **un `git clone` por skill**: 28 clones. En el contenedor, la restauración completa tardó **283 s**. Por eso `skills add heygen-com/hyperframes --full-depth`, que clona una sola vez, es más rápido para la instalación inicial.
 

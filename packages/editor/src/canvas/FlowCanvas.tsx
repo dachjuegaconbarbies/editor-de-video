@@ -65,7 +65,7 @@ export function nodesForStage(graph: Graph, stage: StageId): string[] {
     case "plan":
       return has("plan") ? ["instruccion", "plan", ...result] : ["instruccion", ...result];
     case "resultado":
-      return [has("plan") ? "plan" : "instruccion", ...result, ...versions.slice(1, 2)];
+      return [has("plan") ? "plan" : "instruccion", ...result, ...(has("version-pendiente") ? ["version-pendiente"] : versions.slice(1, 2))];
     case "versiones":
       return versions.length ? versions.slice(-3) : result;
   }
@@ -82,7 +82,7 @@ export function primaryNodesForStage(graph: Graph, stage: StageId): string[] {
     case "plan":
       return ids.includes("plan") ? ["plan"] : ["instruccion"];
     case "resultado":
-      return result;
+      return ids.includes("version-pendiente") ? ["version-pendiente"] : result;
     case "versiones":
       return versions.length ? versions.slice(-1) : result;
     default:
@@ -122,6 +122,18 @@ function toEdge(e: Graph["edges"][number]): Edge<FlowEdgeData> {
   };
 }
 
+function sameData(a: AnyNodeData, b: AnyNodeData): boolean {
+  if (a === b) return true;
+  const ka = Object.keys(a);
+  const kb = Object.keys(b);
+  if (ka.length !== kb.length) return false;
+  return ka.every((k) => {
+    const va = (a as Record<string, unknown>)[k];
+    const vb = (b as Record<string, unknown>)[k];
+    return va === vb || (Array.isArray(va) && Array.isArray(vb) && va.length === vb.length && va.every((x, i) => x === vb[i])) || (typeof va === "object" && typeof vb === "object" && JSON.stringify(va) === JSON.stringify(vb));
+  });
+}
+
 function spawnPosition(g: GraphNode, graph: Graph, known: Map<string, RFNode>): XY {
   const incoming = graph.edges.find((e) => e.target === g.id && known.has(e.source));
   if (incoming) {
@@ -158,6 +170,9 @@ function FlowInner() {
   const [animating, setAnimating] = useState(false);
   const [needsFit, setNeedsFit] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  /** Etapa pedida hace poco: se vuelve a encuadrar al terminar el siguiente acomodo (nodos nuevos). */
+  const followRef = useRef<{ target: StageId | "todo"; until: number } | null>(null);
+  const fitStageRef = useRef<(target: StageId | "todo", duration?: number) => void>(() => undefined);
   const activeStageRef = useRef(activeStage);
   activeStageRef.current = activeStage;
 
@@ -167,7 +182,11 @@ function FlowInner() {
       const prevById = new Map(prev.map((n) => [n.id, n]));
       return graph.nodes.map((g) => {
         const p = prevById.get(g.id);
-        if (p) return { ...p, type: g.type, data: g.data };
+        if (p) {
+          // Conserva la identidad si nada cambió (evita re-renderizar todas las tarjetas al escribir).
+          if (p.type === g.type && sameData(p.data, g.data)) return p;
+          return { ...p, type: g.type, data: g.data };
+        }
         return {
           id: g.id,
           type: g.type,
@@ -219,6 +238,8 @@ function FlowInner() {
       else {
         animFrame.current = null;
         setAnimating(false);
+        const follow = followRef.current;
+        if (follow && Date.now() < follow.until) requestAnimationFrame(() => fitStageRef.current(follow.target, 380));
       }
     };
     animFrame.current = requestAnimationFrame(step);
@@ -269,6 +290,8 @@ function FlowInner() {
     [rf],
   );
 
+  fitStageRef.current = fitStage;
+
   const fitInitial = useCallback(() => {
     const el = containerRef.current;
     const width = el?.clientWidth ?? 1200;
@@ -298,6 +321,7 @@ function FlowInner() {
   // Pedidos explícitos de encuadre (stepper, atajos, GENERAR…).
   useEffect(() => {
     if (!viewRequest || !firstLayoutDone.current) return;
+    followRef.current = { target: viewRequest.target, until: Date.now() + 1500 };
     fitStage(viewRequest.target);
   }, [viewRequest, fitStage]);
 
@@ -339,7 +363,9 @@ function FlowInner() {
     [openNode],
   );
 
-  const edges = useMemo(() => graph.edges.map(toEdge), [graph.edges]);
+  const edgesKey = graph.edges.map((e) => `${e.id}|${e.label ?? ""}|${e.animated ? 1 : 0}|${e.muted ? 1 : 0}`).join(";");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const edges = useMemo(() => graph.edges.map(toEdge), [edgesKey]);
 
   return (
     <div ref={containerRef} className={clsx("ae-flow", ready && "is-ready", animating && "is-animating")} onKeyDown={onKeyDown}>
@@ -362,7 +388,7 @@ function FlowInner() {
         selectionOnDrag={false}
         minZoom={0.2}
         maxZoom={1.6}
-        proOptions={{ hideAttribution: true }}
+        attributionPosition="bottom-right"
         colorMode="light"
         aria-label="Diagrama del flujo de edición"
       >
@@ -370,7 +396,7 @@ function FlowInner() {
         <Background id="mayor" variant={BackgroundVariant.Lines} gap={140} color="rgba(31,31,31,0.06)" lineWidth={1} />
         <MiniMap
           className="ae-minimap"
-          style={{ width: 168, height: 112 }}
+          style={{ width: 150, height: 100 }}
           pannable
           zoomable
           ariaLabel="Minimapa"

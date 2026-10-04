@@ -113,4 +113,16 @@ describe("buildGraph", () => {
     expect(g.nodes.find((n) => n.id === "transcripcion")!.data.processing).toBe(true);
     expect(g.edges.filter((e) => e.target === "transcripcion").every((e) => e.animated)).toBe(true);
   });
+
+  it("generar de nuevo con versiones muestra 'Vn en proceso' desde INSTRUCCIÓN y la nueva versión no cuelga de la anterior", () => {
+    const versions = [version(1, null), version(2, 1, "más rápido")];
+    const job = Job.parse({ id: "j", ownerId: "o", projectId: "p", type: "generar", status: "corriendo", stage: "render", createdAt: new Date().toISOString() });
+    const g = buildGraph(input({ versions, activeJob: job }));
+    const pending = g.nodes.find((n) => n.id === "version-pendiente")!;
+    expect((pending.data as ResultNodeData).nextNumber).toBe(3);
+    expect(g.edges.find((e) => e.id === "instruccion->version-pendiente")!.animated).toBe(true);
+    // Al terminar: V3 sin madre sale de INSTRUCCIÓN, no de V2.
+    const done = buildGraph(input({ versions: [...versions, version(3, null)] }));
+    expect(done.edges.find((e) => e.target === "version-v3")!.source).toBe("instruccion");
+  });
 });

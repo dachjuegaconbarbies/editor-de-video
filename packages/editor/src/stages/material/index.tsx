@@ -34,7 +34,7 @@ export function MaterialStage({ variant }: StageProps) {
   const state = states.material;
   if (variant === "focus") return <MaterialFocus />;
   return (
-    <StageCard title="Material" variant="compact" status={state.status} hint={state.hint} onOpen={() => openFocus("material")} width={312}>
+    <StageCard title="Material" variant="compact" status={state.status} hint={state.status === "vacio" ? undefined : state.hint} onOpen={() => openFocus("material")} width={312}>
       <MaterialCompact />
     </StageCard>
   );
@@ -64,7 +64,7 @@ function MaterialCompact() {
             </Tooltip>
           ) : null
         }
-        empty={<Dropzone size="md" label="Arrastra tus videos" hint="También fotos y notas de voz" accept={ACCEPT_RAW} icon={<Film size={20} />} onFiles={(f) => void controller.uploadFiles(f, "crudo")} />}
+        empty={<Dropzone size="md" label="Sube tus videos" hint="Arrástralos o toca para elegir · también fotos y voz" accept={ACCEPT_RAW} icon={<Film size={20} />} onFiles={(f) => void controller.uploadFiles(f, "crudo")} />}
       >
         {(raw.length > 0 || rawUploads.length > 0) && <ThumbGrid assets={raw} uploads={rawUploads} max={6} />}
       </CompactSection>
@@ -219,7 +219,7 @@ function MaterialFocus() {
           </header>
           <div className="ae-zones ae-zones--2">
             {ELEMENT_ZONES.map((z) => (
-              <Zone key={z.key} zone={z} zoneGroup="elementos" extra={z.key === "deben" && mustAppear > 0 ? `${mustAppear} marcados` : undefined} />
+              <Zone key={z.key} zone={z} zoneGroup="elementos" extra={z.key === "deben" && mustAppear > 0 ? `${mustAppear} ${mustAppear === 1 ? "marcado" : "marcados"}` : undefined} />
             ))}
           </div>
           <FileList assets={elements} uploads={elementUploads} onDismiss={actions.removeUpload} empty="Música, efectos, logos o gráficos que quieras usar. Si no subes nada, Claude usa la biblioteca." />
@@ -241,9 +241,9 @@ function Zone({ zone, zoneGroup, extra }: { zone: ZoneDef; zoneGroup: "crudo" | 
       <span className="ae-drop__label">
         {zone.title}
         {n > 0 && <span className="ae-count">{n}</span>}
-        {extra && <span className="ae-mini-note">{extra}</span>}
       </span>
       <span className="ae-drop__hint">{zone.hint}</span>
+      {extra && <span className="ae-chip ae-chip--sm ae-chip--purple">{extra}</span>}
     </Dropzone>
   );
 }

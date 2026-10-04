@@ -24,3 +24,4 @@ tmp/
 # Skills de terceros (HyperFrames, Kie, etc.): se restauran con `pnpm setup` desde skills-lock.json
 .agents/skills/
 .claude/skills/
+apps/web/dist-demo/

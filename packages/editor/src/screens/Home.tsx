@@ -122,7 +122,7 @@ export function HomeScreen({ onDemo, onRetry }: { onDemo: () => void; onRetry: (
             </div>
           ) : projects.length === 0 ? (
             <EmptyState icon={<Clapperboard size={22} />} title="Aquí verás tus proyectos">
-              Empieza con “Nuevo desde cero”. Todo se guarda solo.
+              {offline ? "Cuando haya conexión con el servidor aparecerán aquí." : "Empieza con “Nuevo desde cero”. Todo se guarda solo."}
             </EmptyState>
           ) : (
             <div className="ae-recent__grid">

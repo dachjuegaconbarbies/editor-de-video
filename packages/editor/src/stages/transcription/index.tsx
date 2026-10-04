@@ -36,7 +36,7 @@ export function TranscriptionStage({ variant }: StageProps) {
   const st = states.transcripcion;
   if (variant === "focus") return <TranscriptionFocus />;
   return (
-    <StageCard title="Transcripción" variant="compact" status={st.status} hint={st.hint} onOpen={() => openFocus("transcripcion")} width={296}>
+    <StageCard title="Transcripción" variant="compact" status={st.status} hint={st.status === "vacio" ? undefined : st.hint} onOpen={() => openFocus("transcripcion")} width={296}>
       <TranscriptionCompact />
     </StageCard>
   );

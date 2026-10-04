@@ -306,7 +306,8 @@ export function createDemoApi(): ApiClient {
     updateAsset: async (assetId, body) => {
       const a = assets.get(assetId);
       if (!a) throw notFound();
-      const next = { ...a, ...body } as Asset;
+      const { role, ...rest } = body;
+      const next = { ...a, ...rest, analysis: role ? { ...a.analysis, role } : a.analysis } as Asset;
       assets.set(assetId, next);
       return clone(next);
     },
