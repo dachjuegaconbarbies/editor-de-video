@@ -87,7 +87,11 @@ pnpm diagnostico         # diagnóstico: ffmpeg, Python, transcripción, llaves,
 
 ## Skills para agentes
 
-- Las skills de HyperFrames se instalan con `pnpm instalar` (o `npx skills add heygen-com/hyperframes --full-depth`)
-  en `.agents/skills/` (enlazadas a `.claude/skills/`). Están en `.gitignore`; `skills-lock.json` fija versiones
-  y se restauran con `npx skills experimental_install`.
-- Los estilos guardados por el editor se exportan como skills (`SKILL.md` + `preset.json` + assets + plantillas).
+- Las skills de HyperFrames se instalan con `pnpm instalar`, que corre
+  `npx skills add heygen-com/hyperframes --full-depth -a claude-code -a warp` (en Windows con `--copy`).
+  La copia vive en `.agents/skills/` (la lee Warp) con enlaces en `.claude/skills/` (la lee Claude Code; Claude
+  Code **no** lee `.agents/skills/`). Ambas carpetas están en `.gitignore`; `skills-lock.json` registra versiones.
+- Skill de Kie AI: `npx skills add https://kie.ai -a claude-code -a warp` (también la instala `pnpm instalar`).
+- Los estilos guardados por el editor se exportan como skills (`SKILL.md` + `preset.json` + assets + plantillas);
+  para usarlos en Claude Code o Warp, copia la carpeta a `.claude/skills/<nombre>/`.
+- Warp lee este `AGENTS.md` (no crear `WARP.md`: si existiera, Warp lo leería en su lugar).

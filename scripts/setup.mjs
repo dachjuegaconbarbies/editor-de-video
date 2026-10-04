@@ -173,21 +173,28 @@ if (!CHECK_ONLY) {
 }
 
 // ---------------------------------------------------------------------------
-c.title("5. Skills para agentes (HyperFrames, Kie AI)");
-const skillsDir = path.join(ROOT, ".agents/skills");
-if (existsSync(path.join(skillsDir, "hyperframes-core"))) c.ok("Skills de HyperFrames instaladas");
+c.title("5. Skills para agentes (HyperFrames, Kie AI) — Claude Code y Warp");
+// Claude Code solo lee .claude/skills/; Warp lee .agents/skills/ y .claude/skills/.
+// `skills add … -a claude-code -a warp` deja la copia en .agents/skills y un enlace en .claude/skills
+// (en Windows se copia, porque los enlaces simbólicos suelen fallar).
+const claudeSkill = path.join(ROOT, ".claude/skills/hyperframes-core/SKILL.md");
+const agentsSkill = path.join(ROOT, ".agents/skills/hyperframes-core/SKILL.md");
+const skillAgents = ["-a", "claude-code", "-a", "warp", ...(isWin ? ["--copy"] : [])];
+const skillsOk = () => existsSync(claudeSkill) && existsSync(agentsSkill);
+if (skillsOk()) c.ok("Skills de HyperFrames instaladas (Claude Code y Warp)");
 else if (!CHECK_ONLY) {
-  c.info("Restaurando skills desde skills-lock.json …");
-  let r = run("npx", ["-y", "skills", "experimental_install"], { cwd: ROOT, stdio: "inherit" });
-  if (r.status !== 0 || !existsSync(path.join(skillsDir, "hyperframes-core"))) {
-    r = run("npx", ["-y", "skills", "add", "heygen-com/hyperframes", "--full-depth", "--yes"], { cwd: ROOT, stdio: "inherit" });
-  }
-  if (existsSync(path.join(skillsDir, "hyperframes-core"))) c.ok("Skills de HyperFrames instaladas");
-  else c.warn("No se pudieron instalar las skills de HyperFrames (requiere acceso a GitHub). Puedes correr: npx skills add heygen-com/hyperframes --full-depth");
-  const kie = run("npx", ["-y", "skills", "add", "https://kie.ai", "--yes"], { cwd: ROOT, stdio: "inherit" });
+  if (maj === 22 && min < 20) c.warn("El instalador de skills pide Node 22.20 o más nuevo; si falla, actualiza Node.");
+  c.info("Instalando las skills de HyperFrames (un solo git clone)…");
+  run("npx", ["-y", "skills", "add", "heygen-com/hyperframes", "--full-depth", ...skillAgents, "-y"], { cwd: ROOT, stdio: "inherit" });
+  if (skillsOk()) c.ok("Skills de HyperFrames instaladas (Claude Code y Warp)");
+  else c.warn("No se pudieron instalar las skills de HyperFrames (requiere git y acceso a GitHub). Puedes correr: npx skills add heygen-com/hyperframes --full-depth -a claude-code -a warp");
+  const kie = run("npx", ["-y", "skills", "add", "https://kie.ai", ...skillAgents, "-y"], { cwd: ROOT, stdio: "inherit" });
   if (kie.status === 0) c.ok("Skill de Kie AI instalada");
-  else c.warn("No se pudo instalar la skill de Kie AI (opcional). Puedes correr: npx skills add https://kie.ai");
-} else c.warn("Skills de HyperFrames no instaladas (pnpm instalar las instala).");
+  else c.warn("No se pudo instalar la skill de Kie AI (opcional). Puedes correr: npx skills add https://kie.ai -a claude-code -a warp");
+} else {
+  if (!existsSync(agentsSkill)) c.warn("Skills de HyperFrames no instaladas (pnpm instalar las instala).");
+  else c.warn("Las skills están en .agents/skills (Warp) pero no en .claude/skills (Claude Code); corre pnpm instalar.");
+}
 
 // ---------------------------------------------------------------------------
 c.title("6. HyperFrames (motion graphics)");
