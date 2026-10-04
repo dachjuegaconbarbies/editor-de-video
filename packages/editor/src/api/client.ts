@@ -76,6 +76,11 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
   };
 
   const url = (path: string) => `${baseUrl}${path}`;
+  /** URL para <img>/<video> (no pueden mandar encabezados): el dueño va como ?owner=. */
+  const mediaUrl = (path: string) => {
+    if (!options.ownerId) return url(path);
+    return `${url(path)}${path.includes("?") ? "&" : "?"}owner=${encodeURIComponent(options.ownerId)}`;
+  };
 
   async function request<T>(method: Method, path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
     let res: Response;
@@ -167,12 +172,12 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     deleteAsset: async (assetId) => {
       await request("DELETE", `/assets/${enc(assetId)}`);
     },
-    assetFileUrl: (asset) => url(`/assets/${enc(id(asset))}/file`),
+    assetFileUrl: (asset) => mediaUrl(`/assets/${enc(id(asset))}/file`),
     assetThumbnailUrl: (asset) => {
       if (typeof asset !== "string" && !asset.thumbnailKey && asset.kind !== "imagen") return null;
-      return url(`/assets/${enc(id(asset))}/thumbnail`);
+      return mediaUrl(`/assets/${enc(id(asset))}/thumbnail`);
     },
-    assetFrameUrl: (asset, t) => url(`/assets/${enc(id(asset))}/frame?t=${encodeURIComponent(t.toFixed(2))}`),
+    assetFrameUrl: (asset, t) => mediaUrl(`/assets/${enc(id(asset))}/frame?t=${encodeURIComponent(t.toFixed(2))}`),
 
     // ---------------------------------------------------------------- Transcripción y palabras clave
     listTranscripts: async (projectId) => unwrap<Transcript[]>(await request("GET", `/projects/${enc(projectId)}/transcripts`), "transcripts"),
@@ -199,14 +204,14 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     getVersion: async (versionId) => unwrap<Version>(await request("GET", `/versions/${enc(versionId)}`), "version"),
     versionVideoUrl: (version) => {
       if (typeof version !== "string" && (version.status !== "lista" || !version.videoKey)) return null;
-      return url(`/versions/${enc(id(version))}/video`);
+      return mediaUrl(`/versions/${enc(id(version))}/video`);
     },
-    versionPosterUrl: () => null,
+    versionPosterUrl: (version) => (version.posterKey ? mediaUrl(`/versions/${enc(version.id)}/poster`) : null),
     correct: async (versionId, body: CorrectionBody) => unwrap<Job>(await request("POST", `/versions/${enc(versionId)}/corrections`, body), "job"),
     rate: async (versionId, body: RatingInput) => unwrap<Version>(await request("POST", `/versions/${enc(versionId)}/rating`, body), "version"),
     compare: (a, b) => request<CompareResponse>("GET", `/versions/compare?a=${enc(a)}&b=${enc(b)}`),
     exportVersion: async (versionId, body: ExportInput = {}) => unwrap<Job>(await request("POST", `/versions/${enc(versionId)}/export`, body), "job"),
-    downloadUrl: (versionId, type: DownloadType, quality = "1080") => url(`/versions/${enc(versionId)}/download?type=${type}&quality=${quality}`),
+    downloadUrl: (versionId, type: DownloadType, quality = "1080") => mediaUrl(`/versions/${enc(versionId)}/download?type=${type}&quality=${quality}`),
     restoreVersion: async (versionId) => unwrap<Project>(await request("POST", `/versions/${enc(versionId)}/restore`, {}), "project"),
 
     // ---------------------------------------------------------------- Estilos
@@ -218,7 +223,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       return { style: res as Style, versions: [] };
     },
     updateStyle: async (styleId, body: UpdateStyleInput) => unwrap<Style>(await request("POST", `/styles/${enc(styleId)}/versions`, body), "style"),
-    exportStyleUrl: (styleId) => url(`/styles/${enc(styleId)}/export`),
+    exportStyleUrl: (styleId) => mediaUrl(`/styles/${enc(styleId)}/export`),
     importStyle: async (file, opts) => unwrap<Style>(await upload("/styles/import", {}, file, opts), "style"),
     deleteStyle: async (styleId) => {
       await request("DELETE", `/styles/${enc(styleId)}`);
@@ -240,7 +245,10 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     deleteRule: async (ruleId) => {
       await request("DELETE", `/memory/rules/${enc(ruleId)}`);
     },
-    listGlossary: async () => unwrap<GlossaryEntry[]>(await request("GET", "/memory/glossary"), "glossary"),
+    listGlossary: async () => {
+      const res = await request<unknown>("GET", "/memory/glossary");
+      return unwrap<GlossaryEntry[]>(unwrap(res, "entries"), "glossary");
+    },
     createGlossaryEntry: async (body: GlossaryInput) => unwrap<GlossaryEntry>(await request("POST", "/memory/glossary", body), "entry"),
     deleteGlossaryEntry: async (entryId) => {
       await request("DELETE", `/memory/glossary/${enc(entryId)}`);
