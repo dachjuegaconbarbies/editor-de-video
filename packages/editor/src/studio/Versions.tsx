@@ -348,14 +348,29 @@ function Correct({ version, videoRef, disabled }: { version: Version; videoRef: 
   };
   return (
     <div className="ae-correct">
-      <label className="ae-correct__label" htmlFor={`corr-${version.id}`}>
-        Corregir
-      </label>
+      <div className="ae-correct__top">
+        <label className="ae-correct__label" htmlFor={`corr-${version.id}`}>
+          Corregir
+        </label>
+        <button
+          type="button"
+          className={clsx("ae-anchor", at != null && "is-on")}
+          aria-pressed={at != null}
+          aria-label={at != null ? `Anclada en ${formatDuration(at)} (toca para quitar)` : "Anclar a este momento del video"}
+          onClick={anchor}
+          disabled={disabled}
+          title="Anclar a este momento: pausa el video donde quieras el cambio y toca aquí"
+        >
+          <MapPin size={13} aria-hidden />
+          {at != null ? `En ${formatDuration(at)}` : "Anclar momento"}
+          {at != null && <X size={12} aria-hidden />}
+        </button>
+      </div>
       <textarea
         id={`corr-${version.id}`}
         className="ae-input ae-correct__text"
         rows={2}
-        placeholder="p. ej. “cambia la tipografía por una más bonita”"
+        placeholder={at != null ? `Qué cambio en ${formatDuration(at)}, p. ej. “aquí quita este corte”` : "p. ej. “cambia la tipografía por una más bonita”"}
         value={text}
         disabled={disabled}
         onChange={(e) => setText(e.target.value)}
@@ -367,16 +382,11 @@ function Correct({ version, videoRef, disabled }: { version: Version; videoRef: 
         }}
       />
       <div className="ae-correct__row">
-        <button type="button" className={clsx("ae-anchor", at != null && "is-on")} aria-pressed={at != null} onClick={anchor} disabled={disabled} title="Anclar la corrección a este momento: pausa el video donde quieras el cambio y toca aquí">
-          <MapPin size={13} aria-hidden />
-          {at != null ? `En ${formatDuration(at)}` : "Anclar momento"}
-          {at != null && <X size={12} aria-hidden />}
-        </button>
+        <p className="ae-correct__help">Solo cambia lo que pidas; lo demás queda idéntico.</p>
         <CoralButton size="sm" icon={busy ? <LoaderCircle size={14} className="ae-spin" /> : <Send size={14} />} disabled={!text.trim() || busy || disabled} onClick={() => void send()}>
           Corregir
         </CoralButton>
       </div>
-      <p className="ae-correct__help">Solo cambia lo que pidas; lo demás queda idéntico.</p>
     </div>
   );
 }

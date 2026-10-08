@@ -161,8 +161,23 @@ export async function runAnalysisJob(ctx: AppContext, job: JobContext): Promise<
     const transcript = await transcribeAsset(ctx, job, asset, project, 0.6);
     result.transcriptId = transcript.id;
     result.words = transcript.words.length;
+    if (transcript.words.length) await autoDetectKeywords(ctx, ownerId, asset.projectId, job.job.id);
   }
   return { result };
+}
+
+/**
+ * Palabras clave y texto para publicar automáticos al terminar de transcribir (el usuario solo sube).
+ * Si todavía quedan otros archivos del proyecto por analizar/transcribir, lo hace el último.
+ */
+export async function autoDetectKeywords(ctx: AppContext, ownerId: string, projectId: string, currentJobId: string): Promise<void> {
+  try {
+    const others = await ctx.db.jobs.list(ownerId, { projectId, type: ["analizar", "transcribir"], status: ["en-cola", "corriendo"] });
+    if (others.some((j) => j.id !== currentJobId)) return;
+    await ctx.pipeline.detectKeywords(ownerId, projectId);
+  } catch (err) {
+    ctx.log.warn({ err: shortError(ctx, err), projectId }, "No se pudieron detectar las palabras clave automáticamente");
+  }
 }
 
 /** Handler del trabajo "transcribir" (volver a transcribir un archivo). */
@@ -173,6 +188,7 @@ export async function runTranscriptionJob(ctx: AppContext, job: JobContext): Pro
   const project = await ctx.db.projects.get(ownerId, asset.projectId);
   await job.stage("transcribiendo", 0.02, `Transcribiendo «${asset.originalName}»`);
   const transcript = await transcribeAsset(ctx, job, asset, project, 0.02);
+  if (transcript.words.length) await autoDetectKeywords(ctx, ownerId, asset.projectId, job.job.id);
   return { result: { assetId: asset.id, transcriptId: transcript.id, words: transcript.words.length } };
 }
 

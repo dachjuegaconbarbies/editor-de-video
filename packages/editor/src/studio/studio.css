@@ -1092,7 +1092,11 @@
   font-weight: 500;
 }
 .ae-preset__key {
-  font-size: 15px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: clip;
+  white-space: nowrap;
+  font-size: 14px;
   font-weight: 900;
   letter-spacing: -0.01em;
   margin-top: 2px;
@@ -1125,7 +1129,7 @@
   z-index: 4;
   margin: 0 -28px -26px;
   padding: 16px 28px 20px;
-  background: rgba(255, 255, 255, 0.97);
+  background: #fff;
   border-radius: 0 0 26px 26px;
   box-shadow: 0 -16px 24px -20px rgba(20, 20, 20, 0.28);
 }
@@ -1320,6 +1324,9 @@
   display: flex;
   align-items: flex-start;
   gap: 0;
+  /* Las versiones se quedan a la vista mientras se recorre el estudio. */
+  position: sticky;
+  top: 20px;
 }
 .ae-lane__item {
   display: flex;
@@ -1489,7 +1496,7 @@
   overflow: hidden;
   border-radius: 14px;
   background: #121212;
-  max-height: min(470px, 58vh);
+  max-height: min(440px, 52vh);
 }
 .ae-vcard__screen video {
   display: block;
@@ -1581,9 +1588,10 @@
   border: 1px solid #d9f2e4;
 }
 .ae-vchanges__head {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: start;
+  gap: 2px 8px;
   width: 100%;
   padding: 8px 10px;
   text-align: left;
@@ -1595,7 +1603,8 @@
   color: var(--ae-mint-ink);
 }
 .ae-vchanges__text {
-  flex: 1;
+  grid-column: 1 / -1;
+  grid-row: 2;
   color: var(--ae-ink-2);
 }
 .ae-vchanges__list {
@@ -1657,11 +1666,15 @@
   resize: vertical;
   font-size: 13px;
 }
+.ae-correct__top,
 .ae-correct__row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+.ae-correct__row .ae-btn {
+  flex: 0 0 auto;
 }
 .ae-correct__help {
   margin: 0;
@@ -1672,7 +1685,8 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 5px 9px;
+  white-space: nowrap;
+  padding: 4px 8px;
   border-radius: 8px;
   font-size: 12px;
   font-weight: 600;
@@ -1801,10 +1815,20 @@
   width: 580px;
 }
 
-/* Sugerencia "¿Lo recuerdo?" arriba, para no taparse con los avisos de abajo. */
+/* Sugerencia "¿Lo recuerdo?" abajo a la izquierda, para no taparse con los avisos ni las versiones. */
 .ae-editor__canvas--studio .ae-suggest {
-  top: 14px;
-  bottom: auto;
+  left: 20px;
+  bottom: 20px;
+  transform: none;
+  flex-wrap: wrap;
+  max-width: min(440px, calc(100% - 40px));
+}
+
+/* El nombre del proyecto ocupa solo lo que mide (sin hueco antes de "Demo"). */
+.ae-topbar .ae-projname {
+  field-sizing: content;
+  min-width: 6ch;
+  max-width: 40ch;
 }
 
 /* ------------------------------------------------------------------ Responsivo */
@@ -1841,8 +1865,10 @@
     grid-template-columns: 1fr;
   }
   .ae-presets {
-    grid-template-columns: repeat(5, minmax(56px, 1fr));
-    overflow-x: auto;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .ae-preset__thumb {
+    aspect-ratio: 4 / 3;
   }
   .ae-genbtn {
     width: 100%;
@@ -1857,8 +1883,11 @@
     border-radius: 0 0 22px 22px;
   }
   .ae-editor__canvas--studio .ae-suggest {
-    flex-wrap: wrap;
-    width: calc(100% - 24px);
+    left: 12px;
+    right: 12px;
+    top: 12px;
+    bottom: auto;
+    max-width: none;
   }
   .ae-editor__canvas--studio .ae-suggest .ae-row {
     flex-wrap: wrap;
@@ -1880,6 +1909,10 @@
   }
   .ae-lane {
     width: 100%;
+    position: static;
+  }
+  .ae-vcard__screen {
+    max-height: 62vh;
   }
   .ae-lane--empty {
     width: 100%;

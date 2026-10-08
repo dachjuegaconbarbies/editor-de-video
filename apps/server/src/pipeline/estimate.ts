@@ -21,7 +21,7 @@ import type { AppContext } from "../context.js";
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
 /** Duración razonable máxima por plataforma cuando la persona no la indica (segundos). */
-const PLATFORM_DEFAULT_MAX: Record<Platform, number> = { tiktok: 60, reels: 60, shorts: 60, youtube: 300, linkedin: 90, generico: 90 };
+export const PLATFORM_DEFAULT_MAX: Record<Platform, number> = { tiktok: 60, reels: 60, shorts: 60, youtube: 300, linkedin: 90, generico: 90 };
 
 /** Segundos que se cuentan por foto en pantalla al calcular el material disponible. */
 const SECONDS_PER_PHOTO = 3;

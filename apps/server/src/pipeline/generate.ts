@@ -18,7 +18,7 @@ import { newId, nowIso } from "../db/util.js";
 import type { JobContext, JobOutcome } from "../jobs/queue.js";
 import { UserFacingError, type EditInput, type EditPlanResult, type QaInput, type QaResult, type RunOptions } from "../services/types.js";
 import { applyPatchLoose } from "../ai/shared/recipe-ops.js";
-import { estimateProject } from "./estimate.js";
+import { estimateProject, PLATFORM_DEFAULT_MAX } from "./estimate.js";
 import { needsFullAnalysis, runAnalysisJob, runTranscriptionJob } from "./assets.js";
 import { buildEditInput, loadProjectData, saveProjectTemplates, type ProjectData } from "./project-data.js";
 import { renderPendingGraphics, renderVersionFiles, runAiRequests } from "./render-version.js";
@@ -259,7 +259,45 @@ export async function runGenerateJob(ctx: AppContext, deps: GenerateDeps, job: J
   let waiting = false;
   const warnings: string[] = Array.isArray(prev.warnings) ? (prev.warnings as string[]) : [];
   try {
+    if (project.status !== "procesando") {
+      const p = await db.projects.update(ownerId, projectId, { status: "procesando" });
+      if (p) ctx.events.emit(projectId, { type: "project.updated", project: p });
+    }
     let plan = planId ? await db.plans.get(ownerId, planId) : null;
+
+    // Ajustes al plan con texto: el editor rehace la propuesta y se vuelve a esperar la aprobación.
+    const reviseFeedback = typeof job.job.input.reviseFeedback === "string" ? job.job.input.reviseFeedback : null;
+    if (plan && plan.status === "ajustando" && reviseFeedback) {
+      await job.stage("planeando", 0.3, "Ajustando el plan con tus indicaciones");
+      const pdata = await loadProjectData(ctx, ownerId, project);
+      const materialMap = await computeMaterialMap(ctx, pdata);
+      const pinput = await buildEditInput(ctx, ownerId, pdata, work.path, { materialMap });
+      let revised: EditPlanResult;
+      let brain = services.editor;
+      try {
+        revised = await services.editor.revisePlan(pinput, plan.recipe, reviseFeedback, { signal: job.signal });
+      } catch (err) {
+        job.throwIfAborted();
+        if (services.editor === services.demoEditor) throw err;
+        warnings.push(`Claude no estuvo disponible (${shortError(ctx, err)}); ajusté el plan con el editor automático.`);
+        brain = services.demoEditor;
+        revised = await services.demoEditor.revisePlan(pinput, plan.recipe, reviseFeedback, { signal: job.signal });
+      }
+      await job.addCost(revised.usage.costUsd);
+      await saveProjectTemplates(ctx, ownerId, projectId, revised.newTemplates);
+      const recipe = finalizeRecipe(revised.recipe, pinput, { kind: brain.kind, model: brain.kind === "claude" ? brain.model : null });
+      const updated = await db.plans.update(ownerId, plan.id, {
+        status: "pendiente",
+        recipe,
+        scenes: revised.scenes,
+        summary: revised.summary,
+        estimatedCostUsd: Math.round(recipe.ai.reduce((sum, a) => sum + (a.costUsd ?? 0), 0) * 10000) / 10000,
+        updatedAt: nowIso(),
+      });
+      if (updated) ctx.events.emit(projectId, { type: "plan.ready", plan: updated });
+      waiting = true;
+      return { status: "esperando", stage: "esperando-aprobacion", message: "Plan ajustado: esperando tu aprobación", result: { planId: plan.id, warnings } };
+    }
     if (plan && plan.status !== "aprobado") plan = null;
 
     let data: ProjectData;
@@ -292,6 +330,15 @@ export async function runGenerateJob(ctx: AppContext, deps: GenerateDeps, job: J
       await saveMaterialMap(ctx, ownerId, projectId, { map: materialMap, usedOrder: null, usedOrderReason: null });
       await job.setResult({ material: { summary: materialMap.summary.text, order: materialMap.order.assetIds, orderReason: materialMap.order.reason } });
       if (materialMap.clips.length > 1) await job.progress(0.21, `Ordené ${materialMap.clips.length} clips ${materialMap.order.reason}`);
+      // Grabación larga sin duración pedida: un video a la medida de la plataforma (no de una hora).
+      const ins = data.settings.instruction;
+      const platformMax = PLATFORM_DEFAULT_MAX[ins.platform] ?? 90;
+      if (ins.targetDuration == null && materialMap.summary.speechSeconds > platformMax * 2.5) {
+        data = { ...data, settings: { ...data.settings, instruction: { ...ins, targetDuration: platformMax, durationMode: "aproximada" } } };
+        warnings.push(
+          `El material es largo (${Math.round(materialMap.summary.speechSeconds / 60)} min de voz) y no pediste duración: armé un video de unos ${platformMax} s con lo mejor. Pide otra duración si la quieres.`,
+        );
+      }
       input = await buildEditInput(ctx, ownerId, data, work.path, { materialMap });
       const planned = await planWithFallback(ctx, input, { signal: job.signal, onProgress: (p, m) => void job.progress(0.2 + Math.min(1, Math.max(0, p)) * 0.24, m) });
       job.throwIfAborted();

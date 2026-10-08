@@ -14,6 +14,7 @@ if (!root) throw new Error("No se encontró #root");
 
 createRoot(root).render(
   <StrictMode>
-    <AutoEditor demo routing="memory" />
+    {/* Si existe la carpeta demo-media/ (v1.mp4, v2.mp4, poster-v1.jpg…) se usan esos videos de ejemplo. */}
+    <AutoEditor demo routing="memory" demoMediaBaseUrl="./demo-media/" />
   </StrictMode>,
 );

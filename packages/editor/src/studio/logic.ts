@@ -5,10 +5,11 @@
  *
  * El usuario nunca etiqueta nada: todo se infiere del tipo de archivo y del análisis del servidor.
  */
-import { defaultProjectSettings, isFiller, type Asset, type AssetCategory, type CaptionStyle, type ProjectSettings, type Transcript, type TranscriptWord } from "@autoeditor/shared";
+import { isFiller, type Asset, type AssetCategory, type CaptionStyle, type ProjectSettings, type Transcript, type TranscriptWord } from "@autoeditor/shared";
 import { sortByOrder } from "../entrada/order.js";
 import { fileKind } from "../entrada/uploads.js";
 import { formatSecondsShort, plural } from "../lib/format.js";
+import { freshSettings } from "../lib/settings.js";
 
 // ---------------------------------------------------------------------------- Material
 
@@ -278,7 +279,8 @@ export function clipRoleText(i: Pick<ClipInsight, "role" | "description" | "supp
  * inteligentes por defecto.
  */
 export function studioDefaultSettings(): ProjectSettings {
-  const s = defaultProjectSettings();
+  // Copia profunda: los valores por defecto de zod comparten objetos anidados entre llamadas.
+  const s = freshSettings();
   s.captions.enabled = false;
   s.tools.titles.enabled = false;
   s.tools.broll.enabled = false;

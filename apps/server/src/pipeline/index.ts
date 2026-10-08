@@ -1,10 +1,10 @@
 /**
  * PIPELINE: orquestación de trabajos (análisis al subir, generar, plan, corregir, exportar).
  *
- * Implementación inicial (ola 1):
  *  - onAssetUploaded: probe + miniatura y trabajo "analizar" (análisis A/B-roll + transcripción).
- *  - retranscribe, detectKeywords y restoreVersion.
- *  - generate / approvePlan / revisePlan / correct / exportVersion → 501 hasta la ola 2.
+ *  - generate (generate.ts): análisis pendiente → mapa del material → plan → IA → motion → render → QA → V1.
+ *  - approvePlan / revisePlan (plans.ts), correct (correct.ts, regla de oro), exportVersion (export.ts).
+ *  - retranscribe, detectKeywords, restoreVersion y materialMap (material.ts).
  */
 import { normalizeText } from "../memory/index.js";
 import type { AppContext, PipelineApi } from "../context.js";
@@ -12,14 +12,13 @@ import type { Keyword } from "@autoeditor/shared";
 import { UserFacingError, type KeywordInput } from "../services/types.js";
 import { processUploadedAsset, runAnalysisJob, runTranscriptionJob } from "./assets.js";
 import { runGenerateJob, startGenerate } from "./generate.js";
+import { runCorrectJob, startCorrect } from "./correct.js";
+import { runExportJob, startExport } from "./export.js";
+import { approvePlan, revisePlan } from "./plans.js";
 import { computeMaterialMap, loadMaterialMap } from "./material.js";
 import { loadProjectData } from "./project-data.js";
 
 export { updateAsset, memoryScopeFor, transcribeAsset } from "./assets.js";
-
-const notYet = (): never => {
-  throw new UserFacingError("no-implementado", "Esta función aún no está disponible", 501);
-};
 
 export function createPipeline(ctx: AppContext): PipelineApi {
   const { db, queue, services } = ctx;
@@ -97,10 +96,10 @@ export function createPipeline(ctx: AppContext): PipelineApi {
     },
 
     generate: (ownerId, projectId) => startGenerate(ctx, ownerId, projectId),
-    approvePlan: async () => notYet(),
-    revisePlan: async () => notYet(),
-    correct: async () => notYet(),
-    exportVersion: async () => notYet(),
+    approvePlan: (ownerId, planId) => approvePlan(ctx, ownerId, planId),
+    revisePlan: (ownerId, planId, feedback) => revisePlan(ctx, ownerId, planId, feedback),
+    correct: (ownerId, versionId, body) => startCorrect(ctx, ownerId, versionId, body),
+    exportVersion: (ownerId, versionId, body) => startExport(ctx, ownerId, versionId, body),
 
     async restoreVersion(ownerId, versionId) {
       const version = await db.versions.get(ownerId, versionId);
@@ -127,6 +126,8 @@ export function createPipeline(ctx: AppContext): PipelineApi {
     },
   };
 
+  queue.registerHandler("exportar", (job) => runExportJob(ctx, job), { replace: true });
+  queue.registerHandler("corregir", (job) => runCorrectJob(ctx, job), { replace: true });
   queue.registerHandler("generar", (job) => runGenerateJob(ctx, { detectKeywords: (o, p) => api.detectKeywords(o, p) }, job), { replace: true });
   return api;
 }

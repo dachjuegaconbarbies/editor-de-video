@@ -600,7 +600,7 @@ export function createDemoApi(options: DemoApiOptions = {}): ApiClient {
       await wait(150);
       const id = `p-${nanoid(6)}`;
       const style = body.styleId ? styles.find((s) => s.id === body.styleId) : null;
-      let settings = freshSettings();
+      let settings = body.settings ? ProjectSettings.parse({ ...freshSettings(), ...clone(body.settings) }) : freshSettings();
       if (style) {
         settings = clone(styleData.get(style.id)?.settings ?? demoStyleSettings(style.id));
         settings.instruction.text = "";

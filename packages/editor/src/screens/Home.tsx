@@ -177,18 +177,18 @@ function StyleCard({ style, onUse, busy }: { style: Style; onUse: () => void; bu
   );
 }
 
-/** Ilustración: mini diagrama MATERIAL → INSTRUCCIÓN → V1. */
+/** Ilustración: tu clip → GENERAR → V1. */
 function MiniFlow() {
   return (
     <span className="ae-miniflow">
       <span className="ae-miniflow__card">
-        <span className="ae-miniflow__tab">Material</span>
+        <span className="ae-miniflow__tab">Tu clip</span>
         <span className="ae-miniflow__note" />
         <span className="ae-miniflow__note ae-miniflow__note--b" />
       </span>
       <span className="ae-miniflow__arrow" />
       <span className="ae-miniflow__card">
-        <span className="ae-miniflow__tab">Instrucción</span>
+        <span className="ae-miniflow__tab">Generar</span>
         <span className="ae-miniflow__line" />
         <span className="ae-miniflow__line ae-miniflow__line--s" />
         <span className="ae-miniflow__btn" />
