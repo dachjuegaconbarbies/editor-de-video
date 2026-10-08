@@ -40,6 +40,7 @@ import { buildScenes, validateWith } from "../shared/recipe-ops.js";
 import { isRemovableFiller, splitPhrases, wordsByAsset, type Phrase, type TWord } from "../shared/transcript.js";
 import { capitalizeFirst, clamp, digitsForNumberWords, hashString, limitWords, looksLikeCta, normalize, round2, round3, stripPunctuation } from "../shared/text.js";
 import { buildKieRequestCost } from "../shared/ai-requests.js";
+import { discardedPhraseIds, materialMapFor, type MaterialMap } from "../shared/material-map.js";
 import { detectKeywordsHeuristic, findCtaPhrase, findHookPhrase } from "./keywords.js";
 
 export interface DemoPlanOptions {
@@ -113,6 +114,7 @@ function sortAssets(list: Asset[]): Asset[] {
 }
 
 interface Material {
+  /** Columna del video: clips base (o clips con voz detectados) en el orden sugerido. */
   aroll: Asset[];
   broll: Asset[];
   photos: Asset[];
@@ -120,28 +122,38 @@ interface Material {
   sfx: Asset[];
   logos: Asset[];
   words: Map<string, TWord[]>;
+  map: MaterialMap;
 }
 
+export { materialMapFor };
+
+/**
+ * Clasifica el material. La columna sale del mapa del material: los clips base en su orden sugerido
+ * (si no hay, los clips con voz detectados); todo lo demás es apoyo (b-roll, fotos, música…).
+ */
 function classify(input: EditInput): Material {
   const words = wordsByAsset(input.transcripts);
-  const videos = input.assets.filter((a) => a.kind === "video" && (a.category === "crudo-video" || a.category === "ia-generado"));
+  const map = materialMapFor(input);
+  const byId = new Map(input.assets.map((a) => [a.id, a]));
+  const columnIds = new Set(map.clips.map((c) => c.assetId));
   const aroll: Asset[] = [];
-  const broll: Asset[] = [];
-  for (const v of videos) {
-    const w = words.get(v.id)?.length ?? 0;
-    const role = v.analysis.role;
-    if (role === "b-roll" && w < 3) broll.push(v);
-    else if (w >= 3 || role === "a-roll" || role === "mixto" || (v.analysis.hasSpeech === true && role !== "b-roll")) aroll.push(v);
-    else broll.push(v);
+  const columnBroll: Asset[] = [];
+  for (const c of map.clips) {
+    const a = byId.get(c.assetId);
+    if (!a) continue;
+    if (c.speechSeconds > 0 || c.hasTranscript) aroll.push(a);
+    else columnBroll.push(a);
   }
+  const others = input.assets.filter((a) => a.kind === "video" && !columnIds.has(a.id) && (a.category === "crudo-video" || a.category === "ia-generado" || a.category === "clip-base"));
   return {
-    aroll: sortAssets(aroll),
-    broll: sortAssets(broll),
+    aroll,
+    broll: [...columnBroll, ...sortAssets(others)],
     photos: sortAssets(input.assets.filter((a) => a.kind === "imagen" && (a.category === "crudo-foto" || a.category === "grafico"))),
     music: sortAssets(input.assets.filter((a) => a.kind === "audio" && a.category === "musica")),
     sfx: sortAssets(input.assets.filter((a) => a.kind === "audio" && a.category === "sfx")),
     logos: sortAssets(input.assets.filter((a) => a.kind === "imagen" && a.category === "logo")),
     words,
+    map,
   };
 }
 
@@ -402,6 +414,8 @@ interface Stats {
   brollInserts: number;
   endCard: boolean;
   warnings: string[];
+  /** Frases descartadas por ser tomas repetidas o arranques en falso. */
+  repeatedTakes: number;
 }
 
 export function buildDemoPlan(input: EditInput, opts: DemoPlanOptions): DemoPlanOutput {
@@ -430,7 +444,7 @@ export function buildDemoPlan(input: EditInput, opts: DemoPlanOptions): DemoPlan
   const target = s.instruction.targetDuration;
   const mode = target == null ? "auto" : s.instruction.durationMode;
   const silence = SILENCE[t.removeSilences.aggressiveness];
-  const stats: Stats = { fillers: [], silences: 0, silenceSeconds: 0, droppedPhrases: 0, shots: 0, brollInserts: 0, endCard: false, warnings: [] };
+  const stats: Stats = { fillers: [], silences: 0, silenceSeconds: 0, droppedPhrases: 0, shots: 0, brollInserts: 0, endCard: false, warnings: [], repeatedTakes: 0 };
   const assetById = new Map(input.assets.map((a) => [a.id, a]));
   const nameOf = (id: string) => assetById.get(id)?.originalName ?? id;
 
@@ -439,13 +453,19 @@ export function buildDemoPlan(input: EditInput, opts: DemoPlanOptions): DemoPlan
   // ---------------------------------------------------------------------------
   const cands: Cand[] = [];
   const phraseByKey = new Map<string, Phrase>();
+  const discarded = discardedPhraseIds(mat.map);
   mat.aroll.forEach((asset, assetIdx) => {
     const dur = asset.probe.duration ?? 0;
     const all = mat.words.get(asset.id);
     if (!all || all.length < 3) {
-      // A-roll sin transcripción: tramos con sonido (si hay análisis) o el clip completo.
+      // A-roll sin transcripción: tramos con voz del mapa (sin silencios largos ni b-roll del propio clip),
+      // o tramos con sonido según el análisis, o el clip completo.
       const ranges: [number, number][] = [];
-      if (t.removeSilences.enabled && asset.analysis.silences.length) {
+      const spoken = mat.map.fragments.filter((f) => f.assetId === asset.id && f.kind === "habla");
+      const hasBrollInside = mat.map.fragments.some((f) => f.assetId === asset.id && f.kind === "b-roll");
+      if (spoken.length && (t.removeSilences.enabled || hasBrollInside)) {
+        for (const f of spoken) ranges.push([f.start, f.end]);
+      } else if (t.removeSilences.enabled && asset.analysis.silences.length) {
         let cur = 0;
         for (const [a, b] of [...asset.analysis.silences].sort((x, y) => x[0] - y[0])) {
           if (b - a < silence.gap) continue;
@@ -473,6 +493,11 @@ export function buildDemoPlan(input: EditInput, opts: DemoPlanOptions): DemoPlan
     }
     const phrases = splitPhrases(all);
     for (const p of phrases) {
+      // Tomas repetidas y arranques en falso: solo queda la mejor toma de cada frase.
+      if (discarded.has(p.id)) {
+        stats.repeatedTakes++;
+        continue;
+      }
       phraseByKey.set(p.id, p);
       const segs = phraseSegments(p, all, dur || all[all.length - 1]!.end + 0.5, {
         removeSilences: t.removeSilences.enabled,
@@ -847,14 +872,18 @@ export function buildDemoPlan(input: EditInput, opts: DemoPlanOptions): DemoPlan
   for (const v of [...mat.broll, ...mat.aroll]) {
     if (!hasAroll) break;
     const isAroll = mat.aroll.includes(v);
-    const segs = v.analysis.brollSegments.length
-      ? v.analysis.brollSegments
-      : isAroll
-        ? []
+    // En los clips de la columna, los fragmentos de b-roll del mapa (ya recortados para no pisar la voz).
+    const inside = isAroll
+      ? mat.map.fragments.filter((f) => f.assetId === v.id && f.kind === "b-roll").map((f) => ({ start: f.start, end: f.end, score: f.score, description: f.reason, tags: [] as string[] }))
+      : [];
+    const segs = isAroll
+      ? inside
+      : v.analysis.brollSegments.length
+        ? v.analysis.brollSegments
         : Array.from({ length: Math.max(1, Math.floor((v.probe.duration ?? 4) / 4)) }, (_, k) => ({ start: k * 4, end: Math.min(v.probe.duration ?? 4, (k + 1) * 4), score: 0.5, description: v.analysis.description, tags: [] as string[] }));
     for (const sg of segs) {
       if (sg.end - sg.start < 1) continue;
-      brollCands.push({ asset: v, start: sg.start, end: sg.end, score: sg.score * (isAroll ? 0.7 : 1), words: normalize(`${sg.description} ${sg.tags.join(" ")} ${v.originalName} ${v.note}`), used: 0, offset: 0, must: v.priority === "debe-aparecer" && !isAroll });
+      brollCands.push({ asset: v, start: sg.start, end: sg.end, score: sg.score * (isAroll ? 0.85 : 1), words: normalize(`${sg.description} ${sg.tags.join(" ")} ${v.originalName} ${v.note}`), used: 0, offset: 0, must: v.priority === "debe-aparecer" && !isAroll });
     }
   }
   if (hasAroll) {
@@ -1162,7 +1191,7 @@ export function buildDemoPlan(input: EditInput, opts: DemoPlanOptions): DemoPlan
   for (const r of rules) if (r.check?.type === "sin-transicion") appliedRuleIds.add(r.id);
   recipe.meta = { ...recipe.meta, appliedRuleIds: [...appliedRuleIds] };
 
-  const summary = summarize(recipe, stats, mode, target, selected.length, cands.length);
+  const summary = summarize(recipe, stats, mode, target, selected.length, cands.length, mat.map);
   recipe.notes = summary;
   const valid = validateWith(input.toolbox, recipe);
   if (!valid.ok) throw new UserFacingError("receta-invalida", `El editor demo armó una receta inválida: ${valid.errors.slice(0, 3).join("; ")}`, 500);
@@ -1178,8 +1207,10 @@ export function buildDemoPlan(input: EditInput, opts: DemoPlanOptions): DemoPlan
   return { recipe, scenes, summary };
 }
 
-function summarize(recipe: Recipe, st: Stats, mode: string, target: number | null, kept: number, total: number): string {
+function summarize(recipe: Recipe, st: Stats, mode: string, target: number | null, kept: number, total: number, map: MaterialMap): string {
   const parts: string[] = ["Edición automática (modo demo, sin IA)."];
+  if (map.clips.length > 1) parts.push(`Usé ${map.clips.length} clips ${map.base === "clip-base" ? "base" : "con voz"} ${map.order.reason}.`);
+  if (st.repeatedTakes) parts.push(`Quité ${st.repeatedTakes} toma(s) repetida(s) o arranque(s) en falso y me quedé con la mejor de cada frase.`);
   const fillers = [...new Set(st.fillers.map((w) => `«${stripPunctuation(w.text)}»`))];
   if (fillers.length) parts.push(`Quité ${st.fillers.length} muletilla(s) (${fillers.slice(0, 4).join(", ")}) y las palabras marcadas para quitar.`);
   if (recipe.tracks.video.length) parts.push(`Armé ${recipe.tracks.video.length} plano(s) cortando las pausas largas sin partir palabras.`);

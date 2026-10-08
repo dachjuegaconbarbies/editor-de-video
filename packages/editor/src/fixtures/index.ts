@@ -141,7 +141,7 @@ export const demoAssets: Asset[] = [
   makeAsset({
     id: "a-entrevista",
     name: "entrevista-barista.mp4",
-    category: "crudo-video",
+    category: "clip-base",
     kind: "video",
     mime: "video/mp4",
     size: 186_400_000,
@@ -193,7 +193,7 @@ export const demoAssets: Asset[] = [
   makeAsset({
     id: "a-testimonio",
     name: "testimonio-clienta.mp4",
-    category: "crudo-video",
+    category: "clip-base",
     kind: "video",
     mime: "video/mp4",
     size: 92_300_000,

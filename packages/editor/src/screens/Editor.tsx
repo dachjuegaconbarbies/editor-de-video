@@ -1,8 +1,9 @@
 /**
- * Pantalla del editor: barra superior + lienzo con el stepper flotante + vista enfocada +
- * panel "Lo que Claude aprendió" + atajos de teclado.
+ * Pantalla del editor: barra superior + ESTUDIO (pizarra con el panel blanco y las versiones a la
+ * derecha) + panel "Lo que Claude aprendió" + ayuda y atajos. La vista de nodos (diagrama) queda
+ * como "Vista avanzada", escondida en la ayuda.
  */
-import { ArrowLeft, ArrowRight, Keyboard } from "lucide-react";
+import { ArrowLeft, ArrowRight, Workflow } from "lucide-react";
 import { useEffect, useState } from "react";
 import { FlowCanvas } from "../canvas/FlowCanvas.js";
 import { STAGE_ORDER, STAGE_TITLES, type StageId } from "../lib/stages.js";
@@ -15,6 +16,7 @@ import { ToolsStage } from "../stages/tools/index.js";
 import { TranscriptionStage } from "../stages/transcription/index.js";
 import { useActions, useController, useEditor, useEditorContext } from "../store/context.js";
 import { Button, FocusOverlay, IconButton, Kbd, Modal } from "../ui/index.js";
+import { StudioBoard } from "../studio/StudioBoard.js";
 import { LearnedPanel } from "./LearnedPanel.js";
 import { Stepper } from "./Stepper.js";
 import { TopBar } from "./TopBar.js";
@@ -24,7 +26,7 @@ const isTyping = (t: EventTarget | null) => {
   return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable);
 };
 
-function useShortcuts(openHelp: () => void) {
+function useShortcuts(openHelp: () => void, advanced: boolean) {
   const controller = useController();
   const { store } = useEditorContext();
   useEffect(() => {
@@ -49,6 +51,8 @@ function useShortcuts(openHelp: () => void) {
         if (e.key === "?") {
           e.preventDefault();
           openHelp();
+        } else if (!advanced) {
+          return;
         } else if (e.key === "0") store.getState().requestView("todo");
         else if (/^[1-8]$/.test(e.key)) {
           const visible = STAGE_ORDER.filter((s) => s !== "plan" || store.getState().settings.instruction.reviewPlan);
@@ -59,27 +63,44 @@ function useShortcuts(openHelp: () => void) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [controller, store, openHelp]);
+  }, [controller, store, openHelp, advanced]);
 }
 
 export function EditorScreen() {
   const controller = useController();
+  const view = useEditor((s) => s.view);
+  const { set } = useActions();
   const [help, setHelp] = useState(false);
-  useShortcuts(() => setHelp(true));
+  const advanced = view === "avanzada";
+  useShortcuts(() => setHelp(true), advanced);
   return (
     <div className="ae-editor">
-      <TopBar onHome={() => void controller.closeProject()} />
-      <main className="ae-editor__canvas">
-        <FlowCanvas />
-        <Stepper />
-        <button type="button" className="ae-help-btn" onClick={() => setHelp(true)} aria-label="Atajos de teclado (?)" title="Atajos de teclado (?)">
-          <Keyboard size={16} aria-hidden />
-        </button>
+      <TopBar onHome={() => void controller.closeProject()} onHelp={() => setHelp(true)} />
+      <main className={advanced ? "ae-editor__canvas" : "ae-editor__canvas ae-editor__canvas--studio"}>
+        {advanced ? (
+          <>
+            <FlowCanvas />
+            <Stepper />
+            <Button size="sm" tone="ink" icon={<ArrowLeft size={14} />} className="ae-back-studio" onClick={() => set({ view: "estudio", focus: null })}>
+              Volver al estudio
+            </Button>
+          </>
+        ) : (
+          <StudioBoard />
+        )}
         <RuleSuggestion />
       </main>
       <LearnedPanel />
-      <FocusView />
-      <ShortcutsModal open={help} onClose={() => setHelp(false)} />
+      {advanced && <FocusView />}
+      <HelpModal
+        open={help}
+        onClose={() => setHelp(false)}
+        advanced={advanced}
+        onToggleAdvanced={() => {
+          set({ view: advanced ? "estudio" : "avanzada", focus: null });
+          setHelp(false);
+        }}
+      />
     </div>
   );
 }
@@ -182,21 +203,32 @@ function RuleSuggestion() {
   );
 }
 
-function ShortcutsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+function HelpModal({ open, onClose, advanced, onToggleAdvanced }: { open: boolean; onClose: () => void; advanced: boolean; onToggleAdvanced: () => void }) {
   const rows: [string[], string][] = [
-    [["Ctrl", "Z"], "Deshacer un cambio de configuración"],
+    [["Ctrl", "Enter"], "Generar"],
+    [["Ctrl", "Z"], "Deshacer un cambio de ajustes"],
     [["Ctrl", "Shift", "Z"], "Rehacer"],
     [["Ctrl", "S"], "Guardar ahora (también se guarda solo)"],
-    [["Ctrl", "Enter"], "Generar"],
-    [["1", "…", "8"], "Ir a una etapa"],
-    [["0"], "Ver todo el diagrama"],
-    [["Doble clic"], "Abrir una tarjeta en grande"],
-    [["Enter"], "Abrir la tarjeta con foco"],
-    [["Esc"], "Volver al diagrama"],
-    [["Ctrl", "rueda"], "Zoom del lienzo (la rueda sola lo desplaza)"],
+    [["Alt", "↑ / ↓"], "Reordenar un clip base con el foco"],
+    [["Esc"], "Cerrar ventanas"],
   ];
   return (
-    <Modal open={open} onClose={onClose} title="Atajos de teclado" width={480}>
+    <Modal open={open} onClose={onClose} title="Cómo funciona" width={520}>
+      <ol className="ae-howto">
+        <li>
+          <b>Sube tu clip base</b> arriba (el video principal). Puede traer de todo: Claude identifica lo que hablas, las tomas de apoyo y las tomas repetidas.
+        </li>
+        <li>
+          <b>Suelta lo demás</b> abajo si quieres: otros clips, fotos, música, logos o referencias. No tienes que etiquetar nada.
+        </li>
+        <li>
+          <b>Toca GENERAR.</b> Verás el progreso en vivo y tu V1 aparecerá a la derecha.
+        </li>
+        <li>
+          <b>Corrige con texto</b> (“quita este corte”). Sale V2 y solo cambia lo que pediste.
+        </li>
+      </ol>
+      <h3 className="ae-help__h">Atajos de teclado</h3>
       <dl className="ae-shortcuts">
         {rows.map(([keys, text]) => (
           <div key={text} className="ae-shortcuts__row">
@@ -209,6 +241,11 @@ function ShortcutsModal({ open, onClose }: { open: boolean; onClose: () => void 
           </div>
         ))}
       </dl>
+      <div className="ae-help__adv">
+        <Button size="sm" tone="ghost" icon={<Workflow size={14} />} onClick={onToggleAdvanced}>
+          {advanced ? "Volver al estudio" : "Vista avanzada (diagrama de nodos)"}
+        </Button>
+      </div>
     </Modal>
   );
 }

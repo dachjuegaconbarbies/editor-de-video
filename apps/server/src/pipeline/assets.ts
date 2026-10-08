@@ -85,7 +85,7 @@ export async function processUploadedAsset(ctx: AppContext, ownerId: string, ass
       await services.storage.putFile(thumbKey, out, { move: true });
       current = (await updateAsset(ctx, ownerId, asset.id, (a) => ({ ...a, thumbnailKey: thumbKey }))) ?? current;
       // Primera miniatura de material en crudo = portada del proyecto.
-      if (asset.projectId && (asset.category === "crudo-video" || asset.category === "crudo-foto")) {
+      if (asset.projectId && (asset.category === "clip-base" || asset.category === "crudo-video" || asset.category === "crudo-foto")) {
         const project = await ctx.db.projects.update(ownerId, asset.projectId, (p) => (p.thumbnailAssetId ? p : { ...p, thumbnailAssetId: asset.id }));
         if (project && project.thumbnailAssetId === asset.id) ctx.events.emit(project.id, { type: "project.updated", project });
       }

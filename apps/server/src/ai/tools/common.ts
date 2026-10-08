@@ -14,6 +14,7 @@ import { z } from "zod";
 import type { MotionTemplate } from "@autoeditor/shared";
 import type { EditInput } from "../../services/types.js";
 import { assetDetail, materialInventory } from "../prompts/context.js";
+import { materialMapFor } from "../shared/material-map.js";
 import type { PatchOp } from "../shared/recipe-ops.js";
 import { round2 } from "../shared/text.js";
 import { wordsByAsset } from "../shared/transcript.js";
@@ -149,7 +150,23 @@ export function materialTools(input: EditInput) {
     }),
   );
 
-  return { verMaterial, leerTranscripcion, verFotogramas };
+  const verMapaMaterial = strictTool(
+    betaZodTool({
+      name: "ver_mapa_material",
+      description:
+        "Mapa del material detectado automáticamente (el usuario solo sube, no etiqueta): orden sugerido de los clips de la columna con su motivo y, por fragmentos dentro de cada clip, qué es habla (frases), b-roll sin voz, toma repetida (descartada; con la toma elegida) o tiempo muerto. Con asset_id = null da el resumen y los grupos de tomas; con un id, todos los fragmentos de ese clip.",
+      inputSchema: z.object({ asset_id: z.string().nullable().describe("Id de un clip de la columna o null para el resumen") }),
+      run: async ({ asset_id }) => {
+        const map = materialMapFor(input);
+        if (!asset_id) return JSON.stringify({ base: map.base, resumen: map.summary.text, orden: map.order, clips: map.clips, tomasRepetidas: map.takes.slice(0, 120), apoyo: map.support });
+        const frags = map.fragments.filter((f) => f.assetId === asset_id);
+        if (!frags.length) return `El archivo ${asset_id} no es parte de la columna. Columna: ${map.clips.map((c) => c.assetId).join(", ") || "ninguna"}.`;
+        return JSON.stringify(frags.slice(0, 600).map((f) => ({ tipo: f.kind, desde: f.start, hasta: f.end, texto: f.text.slice(0, 160), motivo: f.reason, grupo: f.takeGroupId })));
+      },
+    }),
+  );
+
+  return { verMaterial, verMapaMaterial, leerTranscripcion, verFotogramas };
 }
 
 // ---------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 /**
- * Inicio: "Nuevo desde cero", "Usar un estilo" (lista de estilos) y proyectos recientes con
+ * Inicio: "Nuevo video" (grande), "Usar un estilo" (lista de estilos) y proyectos recientes con
  * miniatura y fecha. Si no hay servidor, aviso discreto y botón "Ver demo de la interfaz".
  */
 import type { Project, Style } from "@autoeditor/shared";
@@ -9,6 +9,7 @@ import { useState } from "react";
 import { formatRelative } from "../lib/format.js";
 import { useApi, useController, useEditorShallow } from "../store/context.js";
 import { Button, EmptyState, PurpleButton } from "../ui/index.js";
+import { studioDefaultSettings } from "../studio/logic.js";
 import { Logo } from "./TopBar.js";
 
 export function HomeScreen({ onDemo, onRetry }: { onDemo: () => void; onRetry: () => void }) {
@@ -20,7 +21,7 @@ export function HomeScreen({ onDemo, onRetry }: { onDemo: () => void; onRetry: (
 
   const create = async (key: string, styleId?: string) => {
     setCreating(key);
-    await controller.createProject(styleId ? { name: "Proyecto nuevo con estilo", styleId } : { name: "Proyecto sin título" });
+    await controller.createProject(styleId ? { name: "Video nuevo con estilo", styleId } : { name: "Video nuevo", settings: studioDefaultSettings() });
     setCreating(null);
   };
 
@@ -51,7 +52,7 @@ export function HomeScreen({ onDemo, onRetry }: { onDemo: () => void; onRetry: (
 
         <section className="ae-hero">
           <h1>¿Qué video hacemos hoy?</h1>
-          <p>Sube tu material, dile a Claude qué quieres y corrige con texto. Sale tu V1 sin configurar nada.</p>
+          <p>Sube tu video, toca GENERAR y corrige con texto. Claude edita solo: quita lo que sobra y arma tu V1.</p>
         </section>
 
         <section className="ae-start" aria-label="Empezar">
@@ -64,8 +65,8 @@ export function HomeScreen({ onDemo, onRetry }: { onDemo: () => void; onRetry: (
                 <Plus size={18} />
               </span>
               <span>
-                <span className="ae-start-card__title">Nuevo desde cero</span>
-                <span className="ae-start-card__desc">Arrastra tus videos, escribe qué quieres y pulsa GENERAR.</span>
+                <span className="ae-start-card__title">Nuevo video</span>
+                <span className="ae-start-card__desc">Arrastra tu clip y pulsa GENERAR. No hay nada que configurar.</span>
               </span>
               <ArrowRight size={18} className="ae-start-card__go" />
             </div>
@@ -122,7 +123,7 @@ export function HomeScreen({ onDemo, onRetry }: { onDemo: () => void; onRetry: (
             </div>
           ) : projects.length === 0 ? (
             <EmptyState icon={<Clapperboard size={22} />} title="Aquí verás tus proyectos">
-              {offline ? "Cuando haya conexión con el servidor aparecerán aquí." : "Empieza con “Nuevo desde cero”. Todo se guarda solo."}
+              {offline ? "Cuando haya conexión con el servidor aparecerán aquí." : "Empieza con “Nuevo video”. Todo se guarda solo."}
             </EmptyState>
           ) : (
             <div className="ae-recent__grid">

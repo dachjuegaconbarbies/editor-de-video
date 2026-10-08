@@ -33,6 +33,19 @@ export const generationRoutes: RouteModule = (app, ctx) => {
     },
   );
 
+  app.get(
+    "/projects/:projectId/material",
+    {
+      schema: {
+        tags: ["Generación"],
+        summary: "Mapa del material: clips base en orden sugerido (con su motivo), habla / b-roll / tomas repetidas / tiempos muertos",
+        description: "Se calcula con el material actual. El usuario solo sube: la clasificación por fragmentos y el orden de varios clips son automáticos.",
+        params: ProjectParams,
+      },
+    },
+    async (request) => ctx.pipeline.materialMap(request.ownerId, request.params.projectId),
+  );
+
   app.post(
     "/projects/:projectId/generate",
     { schema: { tags: ["Generación"], summary: "GENERAR: arranca la edición (V1)", params: ProjectParams, body: GenerateBody.nullish() } },

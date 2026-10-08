@@ -142,7 +142,7 @@ d("Claude: prompts y herramientas (prefijo estable)", () => {
     const other = makeEditInput(material, makeSettings({ instruction: { text: "otro", targetDuration: 30, durationMode: "aproximada" } }));
     const b = planTools(other, newPlanSession(10), { kie: testDeps().providers.kie, model: "claude-opus-5-5" });
     expect(a.map((t) => t.name)).toEqual([
-      "ver_material", "leer_transcripcion", "ver_fotogramas", "borrador_automatico", "proponer_receta",
+      "ver_material", "ver_mapa_material", "leer_transcripcion", "ver_fotogramas", "borrador_automatico", "proponer_receta",
       "ver_fotogramas_propuesta", "listar_plantillas", "guia_hyperframes", "escribir_plantilla", "pedir_generacion_ia", "terminar",
     ]);
     expect(definitions(a)).toBe(definitions(b));

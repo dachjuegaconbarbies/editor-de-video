@@ -11,6 +11,9 @@ import type { AppContext, PipelineApi } from "../context.js";
 import type { Keyword } from "@autoeditor/shared";
 import { UserFacingError, type KeywordInput } from "../services/types.js";
 import { processUploadedAsset, runAnalysisJob, runTranscriptionJob } from "./assets.js";
+import { runGenerateJob, startGenerate } from "./generate.js";
+import { computeMaterialMap, loadMaterialMap } from "./material.js";
+import { loadProjectData } from "./project-data.js";
 
 export { updateAsset, memoryScopeFor, transcribeAsset } from "./assets.js";
 
@@ -31,7 +34,7 @@ export function createPipeline(ctx: AppContext): PipelineApi {
     return project;
   }
 
-  return {
+  const api: PipelineApi = {
     async onAssetUploaded(ownerId, asset) {
       try {
         await processUploadedAsset(ctx, ownerId, asset);
@@ -93,7 +96,7 @@ export function createPipeline(ctx: AppContext): PipelineApi {
       return { keywords: saved.keywords, publishCopy: saved.publishCopy };
     },
 
-    generate: async () => notYet(),
+    generate: (ownerId, projectId) => startGenerate(ctx, ownerId, projectId),
     approvePlan: async () => notYet(),
     revisePlan: async () => notYet(),
     correct: async () => notYet(),
@@ -107,7 +110,25 @@ export function createPipeline(ctx: AppContext): PipelineApi {
       ctx.events.emit(project.id, { type: "project.updated", project });
       return project;
     },
+
+    async materialMap(ownerId, projectId) {
+      const project = await mustProject(ownerId, projectId);
+      const data = await loadProjectData(ctx, ownerId, project);
+      const map = await computeMaterialMap(ctx, data);
+      const saved = await loadMaterialMap(ctx, ownerId, projectId);
+      // El orden usado solo vale si los clips de la columna siguen siendo los mismos.
+      const sameClips = saved?.usedOrder && saved.usedOrder.every((id) => map.clips.some((c) => c.assetId === id));
+      return {
+        map,
+        usedOrder: sameClips ? saved!.usedOrder : null,
+        usedOrderReason: sameClips ? saved!.usedOrderReason : null,
+        updatedAt: new Date().toISOString(),
+      };
+    },
   };
+
+  queue.registerHandler("generar", (job) => runGenerateJob(ctx, { detectKeywords: (o, p) => api.detectKeywords(o, p) }, job), { replace: true });
+  return api;
 }
 
 function unavailable(err: unknown): UserFacingError {

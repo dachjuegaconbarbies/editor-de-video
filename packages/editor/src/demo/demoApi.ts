@@ -86,7 +86,7 @@ const slug = (s: string) =>
 
 /** Guion de ejemplo para "transcribir" el material que sube la persona en la demo. */
 const SAMPLE_SPEECH =
-  "Hola, hoy te voy a mostrar algo que cambió por completo mi forma de trabajar. Son tres pasos muy simples y en menos de un minuto lo vas a entender. Primero, prepara todo con calma. Segundo, enfócate en lo importante y quita lo que sobra. Y tercero, compártelo con alguien que lo necesite. Si te sirvió, guárdalo y sígueme para más.";
+  "Hola, hoy te voy a mostrar algo que cambió por completo mi forma de trabajar. Son tres pasos muy simples y en menos de un minuto lo vas a entender. Primero, prepara todo con… perdón. Primero, prepara todo con calma. Segundo, enfócate en lo importante y quita lo que sobra. Y tercero, compártelo con alguien que lo necesite. Si te sirvió, guárdalo y sígueme para más.";
 
 const SAMPLE_KEYWORDS: [string, Keyword["category"]][] = [
   ["te voy a mostrar", "gancho"],
@@ -361,6 +361,8 @@ export function createDemoApi(options: DemoApiOptions = {}): ApiClient {
   /** Clasifica la toma (A-roll / B-roll) con pistas del nombre y la duración. */
   const roleFor = (a: Asset): Asset["analysis"]["role"] => {
     if (a.kind !== "video") return "desconocido";
+    // El clip base es la columna del video: habla y, si es largo, también partes sin voz.
+    if (a.category === "clip-base") return (a.probe.duration ?? 0) > 12 ? "mixto" : "a-roll";
     const name = a.originalName.toLowerCase();
     if (/(entrevista|habla|selfie|testimonio|vlog|podcast|a-?roll|cam|charla|explica)/.test(name)) return "a-roll";
     if (/(b-?roll|paisaje|producto|detalle|ambiente|toma|drone|calle|plano)/.test(name)) return "b-roll";
@@ -380,6 +382,7 @@ export function createDemoApi(options: DemoApiOptions = {}): ApiClient {
     const role = roleFor(a);
     const d = a.probe.duration ?? 8;
     const speech = a.kind === "audio" ? a.category === "crudo-voz" : role === "a-roll" || role === "mixto";
+    const pauses: [number, number][] = a.kind === "video" && speech && d > 6 ? [[Math.round(d * 0.22 * 10) / 10, Math.round(d * 0.22 * 10) / 10 + 1.6], [Math.round(d * 0.58 * 10) / 10, Math.round(d * 0.58 * 10) / 10 + 1.2]] : [];
     a = {
       ...(assets.get(a.id) ?? a),
       analysis: {
@@ -389,18 +392,39 @@ export function createDemoApi(options: DemoApiOptions = {}): ApiClient {
         role,
         scenes: a.kind === "video" ? [0, Math.round(d * 0.35 * 10) / 10, Math.round(d * 0.7 * 10) / 10] : [],
         loudness: a.kind === "video" || a.kind === "audio" ? -18.5 : null,
+        silences: pauses,
         brollSegments:
           role === "b-roll"
             ? [{ start: Math.min(0.5, d / 4), end: Math.max(1, Math.round(d * 0.8 * 10) / 10), score: 0.82, description: "Toma estable aprovechable como B-roll", tags: ["apoyo"] }]
             : role === "mixto"
               ? [{ start: Math.round(d * 0.65 * 10) / 10, end: Math.round(d * 0.95 * 10) / 10, score: 0.68, description: "Parte sin voz, buena para cubrir cortes", tags: ["apoyo"] }]
               : [],
-        description: role === "b-roll" ? "Toma de apoyo sin voz." : role === "a-roll" ? "Persona hablando a cámara." : role === "mixto" ? "Habla y luego muestra el producto." : "",
+        description: role === "b-roll" ? "Toma de apoyo sin voz." : role === "a-roll" ? "Persona hablando a cámara." : role === "mixto" ? (a.category === "clip-base" ? "Hablas a cámara y hay tomas de apoyo sin voz." : "Habla y luego muestra el producto.") : "",
       },
     };
     assets.set(a.id, a);
     emit(a.projectId, { type: "asset.updated", asset: clone(a) });
-    if (speech && (a.category === "crudo-video" || a.category === "crudo-voz")) void simulateTranscription(a);
+    if (speech && (a.category === "clip-base" || a.category === "crudo-video" || a.category === "crudo-voz")) void simulateTranscription(a);
+    if (a.category === "clip-base" && a.projectId) suggestOrder(a.projectId);
+  };
+
+  /**
+   * Orden sugerido de los clips base (como el servidor): cuando todos están analizados, los ordena
+   * por hora de grabación y nombre. Si la persona ya los reacomodó a mano, no se toca.
+   */
+  const recordedAt = new Map<string, number>();
+  const manualOrder = new Set<string>();
+  const suggestOrder = (projectId: string) => {
+    if (manualOrder.has(projectId)) return;
+    const base = projectAssets(projectId).filter((x) => x.category === "clip-base");
+    if (base.length < 2 || base.some((x) => x.analysis.status !== "listo" && x.analysis.status !== "error")) return;
+    const sorted = [...base].sort((x, y) => (recordedAt.get(x.id) ?? 0) - (recordedAt.get(y.id) ?? 0) || x.originalName.localeCompare(y.originalName, "es", { numeric: true }));
+    sorted.forEach((x, i) => {
+      if (x.order === i) return;
+      const next = { ...x, order: i };
+      assets.set(x.id, next);
+      emit(projectId, { type: "asset.updated", asset: clone(next) });
+    });
   };
 
   // ------------------------------------------------------------------ Recetas
@@ -634,6 +658,7 @@ export function createDemoApi(options: DemoApiOptions = {}): ApiClient {
       if (thumb) demoThumbs.set(id, thumb);
       if (info.url) assetFiles.set(id, info.url);
       const order = projectAssets(projectId).filter((a) => a.category === category).length;
+      if (file.lastModified) recordedAt.set(id, file.lastModified);
       const asset = Asset.parse({
         id,
         ownerId: DEMO_OWNER,
@@ -652,7 +677,7 @@ export function createDemoApi(options: DemoApiOptions = {}): ApiClient {
       });
       assets.set(id, asset);
       const p = getProject(projectId);
-      touch(projectId, !p.thumbnailAssetId && (kind === "video" || kind === "imagen") && category.startsWith("crudo") ? { thumbnailAssetId: id } : {});
+      touch(projectId, !p.thumbnailAssetId && (kind === "video" || kind === "imagen") && (category === "clip-base" || category.startsWith("crudo")) ? { thumbnailAssetId: id } : {});
       if (asset.analysis.status === "pendiente") void simulateAnalysis(asset);
       return clone(asset);
     },
@@ -661,6 +686,7 @@ export function createDemoApi(options: DemoApiOptions = {}): ApiClient {
       const a = assets.get(assetId);
       if (!a) throw notFound("ese archivo");
       const { role, ...rest } = body;
+      if (rest.order !== undefined && a.projectId) manualOrder.add(a.projectId);
       const next = Asset.parse({ ...a, ...rest, analysis: role ? { ...a.analysis, role } : a.analysis });
       assets.set(assetId, next);
       return clone(next);
@@ -734,7 +760,7 @@ export function createDemoApi(options: DemoApiOptions = {}): ApiClient {
       if (!est) throw new ApiRequestError("No se pudo estimar.", 500, "estimado");
       const warnings: EstimateWarning[] = preflightWarnings(s, list).map((w) => ({ code: w.id, level: w.severity === "bloqueo" ? "aviso" : "info", message: w.text }));
       if (s.tools.aiImages.enabled || s.tools.aiVideos.enabled) warnings.push({ code: "demo-ia", level: "info", message: "En la demo no se gastan créditos de Kie AI: el costo es una simulación." });
-      const videos = list.filter((a) => a.category === "crudo-video");
+      const videos = list.filter((a) => a.category === "clip-base" || a.category === "crudo-video");
       const res: EstimateResponse = {
         ...est,
         warnings,
@@ -755,8 +781,8 @@ export function createDemoApi(options: DemoApiOptions = {}): ApiClient {
     generate: async (projectId) => {
       await wait(120);
       const p = getProject(projectId);
-      const raw = projectAssets(projectId).filter((a) => a.category === "crudo-video" || a.category === "crudo-foto");
-      if (!raw.length) throw new ApiRequestError("Sube al menos un video o una foto en MATERIAL antes de generar.", 422, "sin-material");
+      const raw = projectAssets(projectId).filter((a) => a.category === "clip-base" || a.category === "crudo-video" || a.category === "crudo-foto");
+      if (!raw.length) throw new ApiRequestError("Sube tu clip base (el video principal) antes de generar.", 422, "sin-material");
       const running = [...jobs.values()].find((j) => j.projectId === projectId && (j.status === "corriendo" || j.status === "en-cola" || j.status === "esperando"));
       if (running) throw new ApiRequestError("Ya hay un trabajo en curso en este proyecto.", 409, "en-curso");
       const { before, after } = generationStages(p);

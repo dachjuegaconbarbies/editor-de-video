@@ -14,7 +14,6 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { createApiClient } from "./api/client.js";
 import type { ApiClient, HeadersInput } from "./api/types.js";
 import { createDemoApi } from "./demo/demoApi.js";
-import { DEMO_PROJECT_ID } from "./fixtures/index.js";
 import { EditorScreen } from "./screens/Editor.js";
 import { HomeScreen } from "./screens/Home.js";
 import { createController, type AutoEditorEvent } from "./store/controller.js";
@@ -37,6 +36,11 @@ export interface AutoEditorProps {
   projectId?: string;
   /** Fuerza el modo demo de la interfaz (también con ?demo-ui=1 en la URL). */
   demo?: boolean;
+  /**
+   * Solo demo: carpeta con videos de ejemplo (v1.mp4, v2.mp4, poster-v1.jpg…). Si no existen, cada
+   * versión usa el clip que subió la persona.
+   */
+  demoMediaBaseUrl?: string;
   className?: string;
   style?: CSSProperties;
 }
@@ -44,6 +48,12 @@ export interface AutoEditorProps {
 function urlWantsDemo(): boolean {
   if (typeof window === "undefined") return false;
   return new URLSearchParams(window.location.search).get("demo-ui") === "1";
+}
+
+/** Opciones de la API simulada: carpeta de medios y velocidad (?demo-rapido=1 acelera los procesos). */
+function demoOptions(mediaBaseUrl: string | undefined) {
+  const fast = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("demo-rapido") === "1";
+  return { mediaBaseUrl, timeScale: fast ? 0.2 : 1 };
 }
 
 function parseHash(): { name: "inicio" } | { name: "editor"; projectId: string } | null {
@@ -56,13 +66,13 @@ function parseHash(): { name: "inicio" } | { name: "editor"; projectId: string }
   return null;
 }
 
-export function AutoEditor({ apiBaseUrl = "/api/v1", ownerId, headers, onEvent, routing = "memory", projectId, demo, className, style }: AutoEditorProps) {
+export function AutoEditor({ apiBaseUrl = "/api/v1", ownerId, headers, onEvent, routing = "memory", projectId, demo, demoMediaBaseUrl, className, style }: AutoEditorProps) {
   const onEventRef = useRef(onEvent);
   onEventRef.current = onEvent;
 
   const instance = useMemo(() => {
     const wantDemo = demo ?? urlWantsDemo();
-    const apiRef: { current: ApiClient } = { current: wantDemo ? createDemoApi() : createApiClient({ baseUrl: apiBaseUrl, ownerId, headers }) };
+    const apiRef: { current: ApiClient } = { current: wantDemo ? createDemoApi(demoOptions(demoMediaBaseUrl)) : createApiClient({ baseUrl: apiBaseUrl, ownerId, headers }) };
     const store = createEditorStore({ demo: wantDemo });
     const controller = createController(store, () => apiRef.current, { onEvent: (e) => onEventRef.current?.(e) });
     return { store, controller, apiRef, getApi: () => apiRef.current };
@@ -77,11 +87,10 @@ export function AutoEditor({ apiBaseUrl = "/api/v1", ownerId, headers, onEvent, 
   const ctx = useMemo(() => ({ store: instance.store, controller: instance.controller, getApi: instance.getApi }), [instance]);
 
   const enterDemo = useCallback(async () => {
-    instance.apiRef.current = createDemoApi();
+    instance.apiRef.current = createDemoApi(demoOptions(demoMediaBaseUrl));
     instance.store.getState().set({ demo: true });
     await instance.controller.init();
-    await instance.controller.openProject(DEMO_PROJECT_ID);
-  }, [instance]);
+  }, [instance, demoMediaBaseUrl]);
 
   // Arranque + ruta inicial.
   useEffect(() => {
@@ -90,11 +99,10 @@ export function AutoEditor({ apiBaseUrl = "/api/v1", ownerId, headers, onEvent, 
     void (async () => {
       await controller.init();
       if (!alive) return;
-      const st = store.getState();
       const fromHash = routing === "hash" ? parseHash() : null;
+      // Sin proyecto en la ruta se arranca en el inicio ("Nuevo video" + recientes), también en la demo.
       if (projectId) await controller.openProject(projectId);
       else if (fromHash?.name === "editor") await controller.openProject(fromHash.projectId);
-      else if (st.demo && !fromHash) await controller.openProject(DEMO_PROJECT_ID);
       if (alive) setBooted(true);
     })();
     return () => {

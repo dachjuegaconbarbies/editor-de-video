@@ -1,13 +1,12 @@
 /**
- * Barra superior del editor: logo "Autoeditor", nombre del proyecto editable, indicador de guardado,
- * deshacer/rehacer, "Lo que Claude aprendió", chip de estimado (abre el desglose) y GENERAR.
+ * Barra superior del editor, limpia: logo (vuelve al inicio), nombre del proyecto editable,
+ * indicador de guardado, "Lo que Claude aprendió" y ayuda. GENERAR vive dentro del estudio.
  */
 import clsx from "clsx";
-import { Brain, Clock, Cloud, CloudOff, Coins, House, LoaderCircle, Redo2, TriangleAlert, Undo2, WandSparkles } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { EstimateBreakdown } from "../stages/instruction/index.js";
-import { useActions, useActiveJob, useController, useEditor, useEditorShallow, useEstimate, useHistory, useWarnings } from "../store/context.js";
-import { IconButton, Popover, PurpleButton, Tooltip } from "../ui/index.js";
+import { Brain, CircleHelp, Cloud, CloudOff, House, LoaderCircle, TriangleAlert } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useActions, useController, useEditor, useEditorShallow } from "../store/context.js";
+import { IconButton, Tooltip } from "../ui/index.js";
 
 export function Logo({ compact }: { compact?: boolean }) {
   return (
@@ -74,40 +73,11 @@ export function SaveIndicator() {
   );
 }
 
-function EstimateChip() {
-  const est = useEstimate();
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLButtonElement>(null);
-  if (!est) return null;
-  return (
-    <div className="ae-estchip-wrap">
-      <button ref={ref} type="button" className="ae-estchip" aria-expanded={open} aria-haspopup="dialog" onClick={() => setOpen((v) => !v)} title="Tiempo y costo estimados (clic para ver el desglose)">
-        <Clock size={14} aria-hidden />
-        <span>{est.label}</span>
-        <span className="ae-estchip__sep" aria-hidden />
-        <Coins size={14} aria-hidden />
-        <span>{est.costLabel}</span>
-      </button>
-      <Popover open={open} onClose={() => setOpen(false)} anchor={ref} label="Desglose del estimado" className="ae-estpop">
-        <div className="ae-estpop__title">Tiempo y costo estimados</div>
-        <EstimateBreakdown estimate={est} />
-      </Popover>
-    </div>
-  );
-}
-
-export function TopBar({ onHome }: { onHome: () => void }) {
-  const controller = useController();
-  const { canUndo, canRedo } = useHistory();
+export function TopBar({ onHome, onHelp }: { onHome: () => void; onHelp: () => void }) {
   const { set } = useActions();
   const panel = useEditor((s) => s.panel);
   const rulesCount = useEditor((s) => s.rules.filter((r) => r.enabled).length);
-  const job = useActiveJob();
-  const warnings = useWarnings();
   const demo = useEditor((s) => s.demo);
-  const block = warnings.find((w) => w.severity === "bloqueo");
-  const busy = !!job && (job.status === "corriendo" || job.status === "en-cola");
-  const waitingPlan = job?.status === "esperando";
   return (
     <header className="ae-topbar">
       <div className="ae-topbar__left">
@@ -125,26 +95,12 @@ export function TopBar({ onHome }: { onHome: () => void }) {
         <SaveIndicator />
       </div>
       <div className="ae-topbar__right">
-        <div className="ae-history" role="group" aria-label="Deshacer y rehacer">
-          <IconButton label="Deshacer (Ctrl+Z)" icon={<Undo2 size={16} />} disabled={!canUndo} onClick={() => controller.undo()} />
-          <IconButton label="Rehacer (Ctrl+Shift+Z)" icon={<Redo2 size={16} />} disabled={!canRedo} onClick={() => controller.redo()} />
-        </div>
         <button type="button" className={clsx("ae-learned-btn", panel === "aprendido" && "is-active")} onClick={() => set({ panel: panel === "aprendido" ? null : "aprendido" })} aria-expanded={panel === "aprendido"}>
           <Brain size={15} aria-hidden />
           <span className="ae-learned-btn__text">Lo que Claude aprendió</span>
           {rulesCount > 0 && <span className="ae-count">{rulesCount}</span>}
         </button>
-        <EstimateChip />
-        <PurpleButton
-          icon={<WandSparkles size={16} aria-hidden />}
-          disabled={!!block || busy || waitingPlan}
-          loading={busy}
-          title={block?.text ?? (busy ? "Ya se está generando." : waitingPlan ? "Primero revisa y aprueba el plan." : "Generar (Ctrl+Enter)")}
-          onClick={() => void controller.generate()}
-          className="ae-topbar__generate"
-        >
-          {busy ? "Generando…" : waitingPlan ? "Revisa el plan" : "Generar"}
-        </PurpleButton>
+        <IconButton label="Ayuda" icon={<CircleHelp size={17} />} onClick={onHelp} className="ae-topbar__help" />
       </div>
     </header>
   );

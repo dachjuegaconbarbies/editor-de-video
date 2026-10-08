@@ -7,6 +7,7 @@
  */
 @import "@xyflow/react/dist/style.css";
 @import "./entrada/entrada.css";
+@import "./studio/studio.css";
 
 .ae-root {
   /* Paleta (afinada para contraste AA con texto tinta) */

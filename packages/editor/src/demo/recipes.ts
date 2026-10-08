@@ -192,10 +192,15 @@ export function totalClipSeconds(recipe: Recipe): number {
  * (apoyo) hasta llegar a la duración pedida.
  */
 export function recipeFromAssets(assets: Asset[], settings: ProjectSettings, transcripts: Map<string, TranscriptWord[]>, keywords: string[]): Recipe {
-  const videos = assets.filter((a) => a.category === "crudo-video");
+  // El clip base (en su orden) es la columna del video; los otros clips son tomas de apoyo.
+  const baseClips = [...assets.filter((a) => a.category === "clip-base")].sort((a, b) => a.order - b.order || a.createdAt.localeCompare(b.createdAt));
+  const others = assets.filter((a) => a.category === "crudo-video");
+  const videos = [...baseClips, ...others];
   const photos = assets.filter((a) => a.category === "crudo-foto");
-  const aroll = videos.filter((a) => a.analysis.role === "a-roll" || a.analysis.role === "mixto");
-  const broll = videos.filter((a) => a.analysis.role === "b-roll" || a.analysis.role === "desconocido");
+  const aroll = baseClips.length ? baseClips : others.filter((a) => a.analysis.role === "a-roll" || a.analysis.role === "mixto");
+  const broll = baseClips.length
+    ? [...others, ...baseClips.filter((a) => a.analysis.brollSegments.length > 0)]
+    : others.filter((a) => a.analysis.role === "b-roll" || a.analysis.role === "desconocido");
   const target = settings.instruction.targetDuration ?? Math.min(45, Math.max(15, videos.reduce((s, a) => s + (a.probe.duration ?? 8), 0) * 0.5 + photos.length * 2));
   const shot = settings.tools.pacing.value === "rapido" ? 1.6 : settings.tools.pacing.value === "lento" ? 4 : 2.6;
   const main = aroll.length ? aroll : videos;

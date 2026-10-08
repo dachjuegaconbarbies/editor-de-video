@@ -7,6 +7,7 @@
 import type { Asset, Recipe, ToolSettings } from "@autoeditor/shared";
 import { PLATFORM_LABELS, RESOLUTIONS, SAFE_ZONES, timelineToSource } from "@autoeditor/shared";
 import type { CorrectionInput, EditInput } from "../../services/types.js";
+import { describeMaterialMap, materialMapFor } from "../shared/material-map.js";
 import { compactRecipe } from "../shared/recipe-ops.js";
 import { round2 } from "../shared/text.js";
 import { wordsByAsset } from "../shared/transcript.js";
@@ -166,6 +167,7 @@ export function projectContext(input: EditInput): string {
     );
   }
   sections.push(`## Material\n${materialInventory(input.assets)}`);
+  sections.push(`## Mapa del material (detectado automáticamente: el usuario solo subió, no etiquetó nada)\n${describeMaterialMap(materialMapFor(input))}`);
   sections.push(`## Transcripciones\n${transcriptsSummary(input)}`);
   return sections.join("\n\n");
 }

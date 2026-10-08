@@ -29,6 +29,7 @@ import type {
   StyleVersion,
   Transcript,
 } from "@autoeditor/shared";
+import type { MaterialMap } from "../ai/shared/material-map.js";
 
 // ---------------------------------------------------------------------------
 // Utilidades comunes
@@ -273,6 +274,12 @@ export interface EditInput {
   toolbox: EditorToolbox;
   /** Modelos de IA generativa disponibles con su costo (para que el editor elija y presupueste). */
   aiModels: KieModelConfig[];
+  /**
+   * Mapa del material (opcional): columna del video en el orden sugerido, fragmentos de habla / b-roll /
+   * tomas repetidas / tiempos muertos dentro de cada clip. Si falta, el editor lo calcula con
+   * `buildMaterialMap` (ai/shared/material-map.ts).
+   */
+  materialMap?: MaterialMap | null;
 }
 
 export interface EditPlanResult {

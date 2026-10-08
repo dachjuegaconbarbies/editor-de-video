@@ -69,7 +69,7 @@ export function prepareProposal(data: unknown, input: EditInput, session: PlanSe
 }
 
 export function planTools(input: EditInput, session: PlanSession, ctx: PlanToolsContext) {
-  const { verMaterial, leerTranscripcion, verFotogramas } = materialTools(input);
+  const { verMaterial, verMapaMaterial, leerTranscripcion, verFotogramas } = materialTools(input);
   const { listarPlantillas, guiaHyperframes, escribirPlantilla } = templateTools(input, session);
 
   const borrador = strictTool(
@@ -211,5 +211,5 @@ export function planTools(input: EditInput, session: PlanSession, ctx: PlanTools
   );
 
   // Orden FIJO (prefijo cacheado).
-  return [verMaterial, leerTranscripcion, verFotogramas, borrador, proponer, verPropuesta, listarPlantillas, guiaHyperframes, escribirPlantilla, pedirIa, terminar];
+  return [verMaterial, verMapaMaterial, leerTranscripcion, verFotogramas, borrador, proponer, verPropuesta, listarPlantillas, guiaHyperframes, escribirPlantilla, pedirIa, terminar];
 }

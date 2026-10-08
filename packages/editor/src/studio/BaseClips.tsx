@@ -57,7 +57,7 @@ export function BaseClips() {
 
       {empty ? (
         <div
-          className="ae-drop ae-drop--hero"
+          className="ae-sdrop ae-sdrop--hero"
           role="button"
           tabIndex={0}
           aria-label="Arrastra aquí tu clip base o toca para elegirlo"
@@ -69,12 +69,12 @@ export function BaseClips() {
             }
           }}
         >
-          <span className="ae-drop__icon" aria-hidden>
+          <span className="ae-sdrop__icon" aria-hidden>
             <Film size={26} />
           </span>
-          <span className="ae-drop__title">Arrastra aquí tu clip base</span>
-          <span className="ae-drop__text">el video principal · o toca para elegirlo</span>
-          <span className="ae-drop__hint">Uno o varios clips. Claude los ordena y quita lo que sobra.</span>
+          <span className="ae-sdrop__title">Arrastra aquí tu clip base</span>
+          <span className="ae-sdrop__text">el video principal · o toca para elegirlo</span>
+          <span className="ae-sdrop__hint">Uno o varios clips. Claude los ordena y quita lo que sobra.</span>
         </div>
       ) : (
         <>
@@ -117,15 +117,15 @@ export function BaseClips() {
 
 function StatusPill({ asset }: { asset: Asset }) {
   const st = asset.analysis.status;
-  if (st === "listo") return <span className="ae-pill ae-pill--ok">Listo</span>;
+  if (st === "listo") return <span className="ae-spill ae-spill--ok">Listo</span>;
   if (st === "error")
     return (
-      <span className="ae-pill ae-pill--err" title={asset.analysis.error ?? undefined}>
+      <span className="ae-spill ae-spill--err" title={asset.analysis.error ?? undefined}>
         <CircleAlert size={12} aria-hidden /> Error
       </span>
     );
   return (
-    <span className="ae-pill ae-pill--busy">
+    <span className="ae-spill ae-spill--busy">
       <LoaderCircle size={12} className="ae-spin" aria-hidden /> Analizando
     </span>
   );
@@ -139,12 +139,12 @@ function Thumb({ asset, onClick, large }: { asset: Asset; onClick: () => void; l
   const h = asset.probe.height ?? 9;
   const portrait = h > w;
   return (
-    <button type="button" className={clsx("ae-thumb", portrait && "is-portrait", large && "is-large")} onClick={onClick} aria-label={`Ver ${asset.originalName}`}>
+    <button type="button" className={clsx("ae-sthumb", portrait && "is-portrait", large && "is-large")} onClick={onClick} aria-label={`Ver ${asset.originalName}`}>
       {src && !broken ? <img src={src} alt="" loading="lazy" draggable={false} onError={() => setBroken(true)} /> : <Film size={22} aria-hidden />}
-      <span className="ae-thumb__play" aria-hidden>
+      <span className="ae-sthumb__play" aria-hidden>
         <Play size={14} fill="currentColor" />
       </span>
-      {asset.probe.duration != null && <span className="ae-thumb__dur">{formatDuration(asset.probe.duration)}</span>}
+      {asset.probe.duration != null && <span className="ae-sthumb__dur">{formatDuration(asset.probe.duration)}</span>}
     </button>
   );
 }
@@ -203,9 +203,9 @@ function ClipRow({ asset, index, total, onPreview, onRemove, onMove }: { asset: 
           {asset.originalName}
         </div>
         <div className="ae-clip__meta">
-          <span>{formatDuration(asset.probe.duration)}</span>
+          {asset.probe.duration != null && <span>{formatDuration(asset.probe.duration)}</span>}
           <StatusPill asset={asset} />
-          {long && <span className="ae-pill ae-pill--warn">Clip largo</span>}
+          {long && <span className="ae-spill ae-spill--warn">Clip largo</span>}
         </div>
         {asset.analysis.status === "listo" && asset.analysis.description && <div className="ae-clip__desc">{asset.analysis.description}</div>}
         {asset.analysis.status === "error" && <div className="ae-clip__err">{asset.analysis.error ?? "No se pudo analizar este clip. Quítalo y vuelve a subirlo."}</div>}
@@ -235,7 +235,7 @@ export function UploadRow({ item, compact }: { item: UploadItem; compact?: boole
   const failed = item.status === "error";
   return (
     <li className={clsx("ae-clip ae-clip--upload", failed && "is-error", compact && "is-compact")}>
-      <span className="ae-thumb ae-thumb--ghost" aria-hidden>
+      <span className="ae-sthumb ae-sthumb--ghost" aria-hidden>
         {failed ? <CircleAlert size={18} /> : <LoaderCircle size={18} className="ae-spin" />}
       </span>
       <div className="ae-clip__body">

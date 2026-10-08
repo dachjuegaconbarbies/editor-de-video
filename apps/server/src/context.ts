@@ -29,6 +29,7 @@ import type { Env } from "./env.js";
 import type { EventBus } from "./events/bus.js";
 import type { JobQueue } from "./jobs/queue.js";
 import type { Log, Services } from "./services/types.js";
+import type { MaterialMapRecord } from "./pipeline/material.js";
 
 // Cuerpos ya validados (con valores por defecto aplicados).
 export type CorrectionInput = z.output<typeof CorrectionBody>;
@@ -60,6 +61,12 @@ export interface PipelineApi {
   exportVersion(ownerId: string, versionId: string, body: ExportInput): Promise<Job>;
   /** Vuelve a una versión anterior (queda como versión actual del proyecto). */
   restoreVersion(ownerId: string, versionId: string): Promise<Project>;
+  /**
+   * Mapa del material (calculado con lo que hay ahora): columna del video (clips base) en el orden
+   * sugerido con su motivo, fragmentos de habla / b-roll / tomas repetidas / tiempos muertos y resumen
+   * («3 clips · 2 tomas repetidas · 4 tomas de apoyo detectadas»), más el orden usado en la última versión.
+   */
+  materialMap(ownerId: string, projectId: string): Promise<MaterialMapRecord>;
 }
 
 // ---------------------------------------------------------------------------

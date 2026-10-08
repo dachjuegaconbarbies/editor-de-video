@@ -30,7 +30,7 @@ export type MaterialDetail = NonNullable<EstimateResponse["material"]>;
 
 /** Resume el material del proyecto para el estimador (incluye lo detectado como b-roll). */
 export function summarizeMaterial(assets: Asset[], transcripts: Transcript[], settings: ProjectSettings): MaterialDetail {
-  const videos = assets.filter((a) => a.kind === "video" && a.category === "crudo-video");
+  const videos = assets.filter((a) => a.kind === "video" && (a.category === "crudo-video" || a.category === "clip-base"));
   const voiceNotes = assets.filter((a) => a.category === "crudo-voz" && a.kind === "audio");
   const photos = assets.filter((a) => a.category === "crudo-foto" && a.kind === "imagen").length;
   const transcribed = new Set(transcripts.filter((t) => t.status === "listo").map((t) => t.assetId));
@@ -76,9 +76,9 @@ export function materialWarnings(
   caps: { kieConfigured: boolean },
 ): EstimateWarning[] {
   const out: EstimateWarning[] = [];
-  const raw = assets.filter((a) => ["crudo-video", "crudo-foto", "crudo-voz"].includes(a.category));
+  const raw = assets.filter((a) => ["clip-base", "crudo-video", "crudo-foto", "crudo-voz"].includes(a.category));
   if (raw.length === 0) {
-    out.push({ code: "sin-material", level: "aviso", message: "Aún no subes material: arrastra tus videos, fotos o notas de voz a MATERIAL." });
+    out.push({ code: "sin-material", level: "aviso", message: "Aún no subes material: arrastra arriba tu clip base (el video principal) o tus videos y fotos." });
     return out;
   }
   const { targetDuration: target, durationMode: mode } = settings.instruction;
@@ -106,7 +106,7 @@ export function materialWarnings(
     }
   }
   if (target != null && mode !== "auto") {
-    const mustAppear = assets.filter((a) => a.category === "crudo-video" && a.priority === "debe-aparecer").reduce((s, a) => s + (a.probe.duration ?? 0), 0);
+    const mustAppear = assets.filter((a) => (a.category === "crudo-video" || a.category === "clip-base") && a.priority === "debe-aparecer").reduce((s, a) => s + (a.probe.duration ?? 0), 0);
     if (mustAppear > target * (mode === "exacta" ? 1 : 1.15) + (mode === "exacta" ? 0.5 : 0)) {
       out.push({
         code: "debe-aparecer-excede",
@@ -119,7 +119,7 @@ export function materialWarnings(
   // B-roll.
   const broll = settings.tools.broll;
   if (broll.enabled) {
-    const videos = assets.filter((a) => a.kind === "video" && a.category === "crudo-video");
+    const videos = assets.filter((a) => a.kind === "video" && (a.category === "crudo-video" || a.category === "clip-base"));
     const pending = videos.some((a) => a.analysis.status === "pendiente" || a.analysis.status === "analizando");
     if (broll.source !== "material" && !caps.kieConfigured) {
       out.push({
