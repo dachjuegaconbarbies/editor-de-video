@@ -16,7 +16,8 @@ import type { MotionEngine } from "../src/services/types.js";
 import { makeToolbox } from "./ai-fixtures.js";
 import { makeApp, type TestApp } from "./helpers.js";
 
-function recipe(over: Record<string, unknown> = {}): Recipe {
+function recipe(overAll: Record<string, unknown> = {}): Recipe {
+  const { tracks: extraTracks, ...over } = overAll;
   return parseRecipe({
     format: { aspect: "9:16", width: 1080, height: 1920, fps: 30 },
     tracks: {
@@ -25,7 +26,7 @@ function recipe(over: Record<string, unknown> = {}): Recipe {
         { id: "c2", assetId: "a2", sourceIn: 1, sourceOut: 3 },
       ],
       text: [{ id: "t1", kind: "titulo", text: "Tres trucos", start: 0.5, end: 2 }],
-      ...((over.tracks as object) ?? {}),
+      ...((extraTracks as object) ?? {}),
     },
     ...over,
   });
