@@ -149,7 +149,7 @@ describe.skipIf(!hasSamples)("pipeline: el usuario solo sube (escenarios reales)
   }, 400_000);
 
   it("grabación larga con tomas repetidas: queda una toma por frase y dura como una sola pasada", async () => {
-    const project = await createProject(t, { tools: { music: { enabled: false } } });
+    const project = await createProject(t, { tools: { music: { enabled: false }, aiImages: { enabled: true, max: 1 } } });
     await uploadFile(t, project.id, files.long, "clip-base");
     const job = await waitJob(t, (await generate(t, project.id)).id);
     expect(job.error, job.error ?? "").toBeNull();
@@ -160,6 +160,11 @@ describe.skipIf(!hasSamples)("pipeline: el usuario solo sube (escenarios reales)
     expect(v1.recipe.duration).toBeLessThan(aroll.duration + 1);
     expect(v1.recipe.duration).toBeGreaterThan(10);
     expect(v1.changeSummary).toMatch(/toma\(s\) repetida\(s\)/);
+    // IA generativa (Kie en modo demo, sin red): el pedido se genera y se coloca como overlay.
+    expect(v1.recipe.ai.length).toBeGreaterThan(0);
+    const done = v1.recipe.ai.filter((a) => a.status === "listo");
+    expect(done.length).toBeGreaterThan(0);
+    expect(v1.recipe.tracks.overlays.some((o) => o.kind === "ia-imagen" && o.assetId === done[0]!.resultAssetId)).toBe(true);
     const mat = (await t.app.inject({ method: "GET", url: `/api/v1/projects/${project.id}/material`, headers: H })).json();
     expect(mat.map.takes.length).toBeGreaterThanOrEqual(5);
     expect(mat.map.summary.text).toMatch(/1 clip · \d+ tomas repetidas/);

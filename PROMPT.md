@@ -80,6 +80,16 @@ vista** y funcionar así:
      corrección sobre la flecha.
 - Real, no simulado: el usuario sube SU media, genera SUS videos, ve el resultado en tiempo real y lo descarga.
 
+### Opciones (corrección del usuario tras probarlo)
+- **Subtítulos automáticos:** un solo interruptor, sin menú de estilos. Claude define el estilo de subtítulos y textos
+  según lo que se describe en "¿Cómo quieres el video?" y las referencias visuales (no se elige un preset al prenderlo).
+- **Motion graphics:** al prenderlo se elige **quién los hace**: **"Los diseña Claude"** (composiciones a la medida
+  escritas por Claude) o **"Plantillas HyperFrames"** (plantillas ya hechas). Prendido por defecto con Claude.
+- **Por defecto el video debe sentirse editado y divertido:** gancho en los primeros 3 s (texto gancho + punch-in),
+  zooms/punch-ins con ritmo y en palabras clave, subtítulos automáticos, motion graphics y B-roll cuando haya.
+- La página publicada es una **demostración**: no procesa video. Su vista previa debe dejar claro que es simulada; el
+  video real lo genera la app (servidor) en la computadora del usuario.
+
 ### Estilo de texto de referencia (`docs/referencia/estilos/`)
 - **Cinético mixto** (`antes-despues-cinetico.jpg`, `serif-mas-bold-remodel.jpg`, `cursiva-color-mas-bold-cerca.jpg`):
   frases cortas centradas en el tercio medio, apiladas en 2–3 líneas; palabras de entrada pequeñas en una fuente ligera o

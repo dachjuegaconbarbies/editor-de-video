@@ -81,10 +81,16 @@ export const ToolSettings = z.object({
   motionGraphics: toggle(
     {
       mode: z.enum(["automatico", "manual"]).default("automatico"),
+      /**
+       * Quién diseña los motion graphics: "claude" = Claude los diseña a la medida (escribe composiciones
+       * HyperFrames nuevas para este video); "plantillas" = plantillas de HyperFrames ya hechas, solo se llenan.
+       * Sin llave de Claude, "claude" cae a plantillas y se avisa.
+       */
+      author: z.enum(["claude", "plantillas"]).default("claude"),
       engine: z.enum(["hyperframes", "builtin", "remotion"]).default("hyperframes"),
       items: z.array(ManualGraphic).default([]),
     },
-    false,
+    true,
   ),
   aiImages: toggle(
     {
@@ -130,10 +136,15 @@ export const ProjectSettings = z.object({
     .object({
       enabled: z.boolean().default(true),
       style: CaptionStyle.default(CaptionStyle.parse({})),
+      /**
+       * "auto" = Claude define el estilo de subtítulos y textos según lo que describa el usuario y sus referencias
+       * (la interfaz NO ofrece presets); "fijo" = usar `style` tal cual (p. ej. al venir de un estilo guardado).
+       */
+      styleMode: z.enum(["auto", "fijo"]).default("auto"),
       translateTo: z.string().nullable().default(null),
       exportFiles: z.boolean().default(true),
     })
-    .default({ enabled: true, style: CaptionStyle.parse({}), translateTo: null, exportFiles: true }),
+    .default({ enabled: true, style: CaptionStyle.parse({}), styleMode: "auto", translateTo: null, exportFiles: true }),
   tools: ToolSettings.default(ToolSettings.parse({})),
   engines: z
     .object({

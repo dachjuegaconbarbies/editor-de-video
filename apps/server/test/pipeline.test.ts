@@ -104,6 +104,17 @@ describe.skipIf(!hasSamples)("pipeline: generar de punta a punta", () => {
     expect((p.project ?? p).currentVersionId).toBe(v2.id);
   }, 300_000);
 
+  it("si la corrección es ambigua, pregunta y no crea versión", async () => {
+    const res = await t.app.inject({ method: "POST", url: `/api/v1/versions/${v1.id}/corrections`, headers: H, payload: { text: "zxqv plof" } });
+    expect(res.statusCode, res.body).toBe(202);
+    const job = await waitJob(t, (res.json() as Job).id);
+    expect(job.status).toBe("listo");
+    expect(typeof job.result?.question).toBe("string");
+    expect(job.result?.versionId).toBeNull();
+    const versions = (await t.app.inject({ method: "GET", url: `/api/v1/projects/${project.id}/versions`, headers: H })).json().versions as Version[];
+    expect(versions).toHaveLength(2);
+  }, 120_000);
+
   it("exporta en 720p y vuelve a V1", async () => {
     const res = await t.app.inject({ method: "POST", url: `/api/v1/versions/${v1.id}/export`, headers: H, payload: { quality: "720" } });
     expect(res.statusCode, res.body).toBe(202);
