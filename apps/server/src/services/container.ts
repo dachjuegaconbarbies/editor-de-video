@@ -11,7 +11,7 @@ import { createMediaAnalyzer } from "../media/index.js";
 import { createMotionEngines } from "../motion/index.js";
 import { createRenderer } from "../render/index.js";
 import { createLocalStorage } from "../storage/local.js";
-import { createTranscriber } from "../transcription/index.js";
+import { createTranscriberWithFallback } from "../transcription/index.js";
 import type { EditorBrain, GenerativeProvider, Log, MediaAnalyzer, Renderer, Services, Transcriber } from "./types.js";
 
 const describe = (err: unknown) => (err instanceof Error ? err.message : String(err));
@@ -89,7 +89,7 @@ export async function createServices(env: Env, config: AppConfig, log: Log, over
   return {
     storage,
     media: overrides.media ?? safely(log, "el análisis de medios", () => createMediaAnalyzer({ env, storage, log }), fallbackMedia),
-    transcriber: overrides.transcriber ?? safely(log, "la transcripción", () => createTranscriber({ env, config: config.models.transcription, log }), fallbackTranscriber),
+    transcriber: overrides.transcriber ?? safely(log, "la transcripción", () => createTranscriberWithFallback({ env, config: config.models.transcription, log, storage }), fallbackTranscriber),
     renderer: overrides.renderer ?? safely(log, "el render", () => createRenderer({ env, log }), fallbackRenderer),
     motion:
       overrides.motion ??

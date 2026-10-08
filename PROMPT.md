@@ -51,6 +51,33 @@ La interfaz tiene que ser **limpia, bonita e intuitiva**: un producto pulido, no
 - Conectores grises en ángulo recto con flecha; el de la etapa que se está procesando se anima.
 - Tipografía sans limpia, etiquetas en mayúsculas.
 
+## 2.1 Dirección actual de la interfaz (pedido del usuario — manda sobre lo anterior)
+
+El diagrama original era solo referencia del flujo; **no hay que copiarlo**. La interfaz debe tener **pocas opciones a la
+vista** y funcionar así:
+
+- **La pizarra (fondo gris con cuadrícula) contiene un ESTUDIO: un panel blanco, limpio y centrado** donde pasa todo:
+  1. **Arriba, lo principal: MATERIAL EN CRUDO** — una zona grande para arrastrar los clips (o tocar para elegir).
+     Se pueden vaciar/quitar todos con un botón.
+  2. **Debajo, todo lo demás:** elementos del video (música, logos, imágenes, efectos) y **referencias visuales**
+     (imágenes o links con "qué me gusta de esto"). También vaciables.
+  3. **"¿Cómo quieres el video?"** (una caja de texto, opcional) + formato y duración en chips.
+  4. **Opciones apagadas por defecto que se van habilitando** (subtítulos/estilo de texto, B-roll, música, motion
+     graphics, IA…). Con solo subir material y tocar GENERAR, Claude edita en automático.
+  5. **GENERAR** → progreso en vivo dentro del estudio → **Resultado**: reproductor del video, **DESCARGAR**, corregir
+     con texto. Las versiones (V1 → V2 → V3) aparecen a la derecha del estudio sobre la pizarra, conectadas con la
+     corrección sobre la flecha.
+- Real, no simulado: el usuario sube SU media, genera SUS videos, ve el resultado en tiempo real y lo descarga.
+
+### Estilo de texto de referencia (`docs/referencia/estilos/`)
+- **Cinético mixto** (`antes-despues-cinetico.jpg`, `serif-mas-bold-remodel.jpg`, `cursiva-color-mas-bold-cerca.jpg`):
+  frases cortas centradas en el tercio medio, apiladas en 2–3 líneas; palabras de entrada pequeñas en una fuente ligera o
+  serif, y la **palabra clave GRANDE** en una display gruesa (blanca con brillo suave o en color de marca) o en cursiva
+  serif de color; punch-in (zoom) en la palabra clave.
+- **Título script** (`titulo-script-cafesito.jpg`): títulos en letra script/cursiva elegante con sombra suave sobre
+  B-roll, en el tercio superior.
+- Formato vertical 9:16 respetando las **zonas seguras** de Reels/TikTok (`reels-zonas-seguras.jpg`).
+
 ## 3. Inicio
 
 - **Nuevo desde cero**, **Usar un estilo** y proyectos recientes con miniatura.
