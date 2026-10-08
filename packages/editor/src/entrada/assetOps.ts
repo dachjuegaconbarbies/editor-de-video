@@ -101,6 +101,15 @@ export function createAssetOps(store: EditorStore, getApi: () => ApiClient, cont
       const timer = setTimeout(() => void commitDelete(asset.id), UNDO_DELETE_MS);
       pending.set(asset.id, { asset, timer, toastId });
     },
+    /** Quita varios archivos a la vez ("Vaciar") con un solo aviso y un solo "Deshacer". */
+    removeMany(list: Asset[], text: string) {
+      const items = list.filter((a) => !pending.has(a.id));
+      if (!items.length) return;
+      const toastId = `del-${items[0]!.id}-${items.length}`;
+      for (const a of items) s().removeAsset(a.id);
+      s().toast({ id: toastId, kind: "info", text, action: { label: "Deshacer", run: () => items.forEach((a) => undoDelete(a.id)) } });
+      for (const a of items) pending.set(a.id, { asset: a, timer: setTimeout(() => void commitDelete(a.id), UNDO_DELETE_MS), toastId });
+    },
     undoDelete,
     isPendingDelete: (id: string) => pending.has(id),
 

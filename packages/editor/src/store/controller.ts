@@ -75,7 +75,13 @@ export function createController(store: EditorStore, getApi: () => ApiClient, op
 
   const fail = (err: unknown, prefix?: string) => {
     if (err instanceof ApiRequestError && err.isAbort) return;
-    const text = prefix ? `${prefix}: ${messageOf(err)}` : messageOf(err);
+    // 501 = el servidor aún no tiene lista esa parte del proceso: mensaje amable, sin tecnicismos.
+    const text =
+      err instanceof ApiRequestError && err.status === 501
+        ? "Esta parte se está terminando de conectar en el servidor. Tu material y tus ajustes quedaron guardados; intenta de nuevo en un rato."
+        : prefix
+          ? `${prefix}: ${messageOf(err)}`
+          : messageOf(err);
     s().toast({ kind: "error", text });
     emit({ type: "error", projectId: s().project?.id, detail: text });
   };

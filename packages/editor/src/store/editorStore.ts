@@ -119,6 +119,8 @@ export interface EditorData {
   fullDiagram: boolean;
   /** Último trabajo de generación/corrección que falló (para mostrar el error y "Reintentar"). */
   failedJobId: string | null;
+  /** Pantalla del editor: el estudio (principal) o la vista avanzada (diagrama de nodos). */
+  view: "estudio" | "avanzada";
 }
 
 export interface EditorActions {
@@ -185,6 +187,7 @@ export function initialData(overrides: Partial<EditorData> = {}): EditorData {
     clarify: null,
     fullDiagram: false,
     failedJobId: null,
+    view: "estudio",
     ...overrides,
   };
 }

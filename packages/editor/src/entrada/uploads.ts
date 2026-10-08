@@ -32,6 +32,7 @@ export function fileKind(file: Pick<File, "name" | "type">): FileKind {
 
 /** Qué tipos acepta cada categoría (las de material/elementos se pueden reacomodar solas). */
 const CATEGORY_KINDS: Partial<Record<AssetCategory, FileKind[]>> = {
+  "clip-base": ["video"],
   "crudo-video": ["video"],
   "crudo-foto": ["imagen"],
   "crudo-voz": ["audio"],
@@ -48,6 +49,7 @@ const CATEGORY_KINDS: Partial<Record<AssetCategory, FileKind[]>> = {
 };
 
 export const CATEGORY_LABELS: Partial<Record<AssetCategory, string>> = {
+  "clip-base": "Clip base",
   "crudo-video": "Videos",
   "crudo-foto": "Fotos",
   "crudo-voz": "Notas de voz",
@@ -73,7 +75,7 @@ export function resolveCategory(file: Pick<File, "name" | "type">, wanted: Asset
     const kinds = CATEGORY_KINDS[wanted];
     if (!kinds || kinds.includes(kind)) return { category: wanted, moved: false };
     // Solo las categorías del material se reacomodan; las demás (guion, fuente…) rechazan.
-    const reroutable = ["crudo-video", "crudo-foto", "crudo-voz", "musica", "sfx", "grafico", "logo"].includes(wanted);
+    const reroutable = ["clip-base", "crudo-video", "crudo-foto", "crudo-voz", "musica", "sfx", "grafico", "logo"].includes(wanted);
     if (!reroutable) return null;
   }
   const auto = categoryForFile(file as File, zone);

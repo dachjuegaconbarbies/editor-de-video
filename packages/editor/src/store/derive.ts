@@ -22,14 +22,17 @@ import { formatSecondsShort } from "../lib/format.js";
 import type { ContextKey, StageId, StageState } from "../lib/stages.js";
 import type { UploadItem } from "./editorStore.js";
 
-export const RAW_CATEGORIES = ["crudo-video", "crudo-foto", "crudo-voz"] as const;
+export const RAW_CATEGORIES = ["clip-base", "crudo-video", "crudo-foto", "crudo-voz"] as const;
+
+/** Video en crudo: el clip base (arriba en el estudio) y los otros clips. */
+const isRawVideo = (a: Asset) => a.category === "clip-base" || a.category === "crudo-video";
 export const ELEMENT_CATEGORIES = ["musica", "sfx", "grafico", "logo"] as const;
 
 const dur = (a: Asset) => a.probe.duration ?? 0;
 
 /** Resumen del material para el estimador (lo mismo que calcula el servidor). */
 export function summarizeMaterial(assets: Asset[], transcripts: Transcript[]): MaterialSummary {
-  const videos = assets.filter((a) => a.category === "crudo-video");
+  const videos = assets.filter(isRawVideo);
   const voices = assets.filter((a) => a.category === "crudo-voz");
   const photos = assets.filter((a) => a.category === "crudo-foto").length;
   const videoSeconds = videos.reduce((s, a) => s + dur(a), 0);
@@ -51,7 +54,7 @@ export function summarizeMaterial(assets: Asset[], transcripts: Transcript[]): M
 
 /** Segundos de material aprovechable (video en crudo + ~3 s por foto). */
 export function availableMaterialSeconds(assets: Asset[]): number {
-  return assets.reduce((s, a) => s + (a.category === "crudo-video" ? dur(a) : a.category === "crudo-foto" ? 3 : 0), 0);
+  return assets.reduce((s, a) => s + (isRawVideo(a) ? dur(a) : a.category === "crudo-foto" ? 3 : 0), 0);
 }
 
 /** Convierte la configuración pública en las entradas del estimador compartido. */
@@ -86,8 +89,8 @@ export interface Warning {
 /** Avisos antes de generar (p. ej. pides 60 s y solo hay 20 s de material). */
 export function preflightWarnings(settings: ProjectSettings, assets: Asset[]): Warning[] {
   const out: Warning[] = [];
-  const raw = assets.filter((a) => a.category === "crudo-video" || a.category === "crudo-foto");
-  if (raw.length === 0) out.push({ id: "sin-material", text: "Sube al menos un video o una foto en MATERIAL.", severity: "bloqueo" });
+  const raw = assets.filter((a) => isRawVideo(a) || a.category === "crudo-foto");
+  if (raw.length === 0) out.push({ id: "sin-material", text: "Sube tu clip base (el video principal) para poder generar.", severity: "bloqueo" });
   const available = availableMaterialSeconds(assets);
   const target = settings.instruction.targetDuration;
   if (target != null && raw.length > 0 && available > 0 && target > available) {
@@ -148,7 +151,7 @@ export function stageStates(input: StageInput): Record<StageId, StageState> {
       ? { status: "vacio", hint: ctxIssues[0]!.hint }
       : { status: "listo", hint: "Claude usará tu contexto." };
 
-  const speech = assets.filter((a) => (a.category === "crudo-video" || a.category === "crudo-voz") && a.analysis.hasSpeech !== false && a.analysis.role !== "b-roll");
+  const speech = assets.filter((a) => (isRawVideo(a) || a.category === "crudo-voz") && a.analysis.hasSpeech !== false && a.analysis.role !== "b-roll");
   const tBusy = transcripts.filter((t) => t.status === "pendiente" || t.status === "transcribiendo");
   const tErr = transcripts.filter((t) => t.status === "error");
   const tReady = transcripts.filter((t) => t.status === "listo");
