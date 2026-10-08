@@ -715,6 +715,14 @@ export function createDemoApi(options: DemoApiOptions = {}): ApiClient {
       }
       return { keywords: clone(keywords.get(projectId) ?? []), publishCopy: clone(publishCopies.get(projectId) ?? null) };
     },
+    retranscribe: async (assetId) => {
+      const a = assets.get(assetId);
+      if (!a || !a.projectId) throw notFound("ese archivo");
+      const job = newJob(a.projectId, "transcribir", { assetId }, 2000);
+      jobs.set(job.id, job);
+      void simulateTranscription(a).then(() => updateJob(job, { status: "listo", progress: 1, finishedAt: nowIso() }));
+      return clone(job);
+    },
 
     // -------------------------------------------------------------- Estimado, generar, plan y trabajos
     estimate: async (projectId, settings) => {

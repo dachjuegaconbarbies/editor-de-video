@@ -4,6 +4,7 @@
  */
 import type { EditorBrain, GenerativeProvider } from "../services/types.js";
 import type { AiDeps } from "./deps.js";
+import { createClaudeBrain } from "./claude/editor.js";
 import { createDemoBrain } from "./demo/index.js";
 import { createKieProvider } from "./kie/provider.js";
 
@@ -15,8 +16,9 @@ export function createDemoEditor(deps: AiDeps): EditorBrain {
 }
 
 /** Editor con Claude; devuelve null si no hay ANTHROPIC_API_KEY o está forzado el modo demo. */
-export function createClaudeEditor(_deps: AiDeps): EditorBrain | null {
-  return null;
+export function createClaudeEditor(deps: AiDeps): EditorBrain | null {
+  if (!deps.env.anthropicApiKey.trim() || deps.env.demoMode) return null;
+  return createClaudeBrain(deps);
 }
 
 /** IA generativa con Kie AI (o marcadores locales en modo demo, sin llave o con DEMO_MODE). */

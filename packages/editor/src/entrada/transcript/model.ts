@@ -257,3 +257,24 @@ export function rangeText(words: Pick<TranscriptWord, "text">[], range: [number,
     .join(" ")
     .replace(/\s+([,.!?;:])/g, "$1");
 }
+
+/** Nombres legibles para los hablantes ("Hablante 1", "Hablante 2"…) en orden de aparición. */
+export function speakerLabels(words: Pick<TranscriptWord, "speaker">[]): Map<string, { label: string; n: number }> {
+  const out = new Map<string, { label: string; n: number }>();
+  for (const w of words) {
+    if (!w.speaker || out.has(w.speaker)) continue;
+    const n = out.size + 1;
+    out.set(w.speaker, { label: `Hablante ${n}`, n });
+  }
+  return out;
+}
+
+/** Movimiento del cursor/selección con el teclado (posiciones acotadas a la transcripción). */
+export function moveSelection(sel: { a: number; b: number } | null, delta: number, extend: boolean, count: number): { a: number; b: number } | null {
+  if (count <= 0) return null;
+  const clampP = (p: number) => Math.max(0, Math.min(count - 1, p));
+  if (!sel) return { a: clampP(delta > 0 ? 0 : count - 1), b: clampP(delta > 0 ? 0 : count - 1) };
+  if (extend) return { a: sel.a, b: clampP(sel.b + delta) };
+  const p = clampP((delta > 0 ? Math.max(sel.a, sel.b) : Math.min(sel.a, sel.b)) + (sel.a === sel.b ? delta : 0));
+  return { a: p, b: p };
+}

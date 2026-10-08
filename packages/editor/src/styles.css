@@ -6,6 +6,7 @@
  * coral para GUARDAR ESTILO y CORRECCIÓN.
  */
 @import "@xyflow/react/dist/style.css";
+@import "./entrada/entrada.css";
 
 .ae-root {
   /* Paleta (afinada para contraste AA con texto tinta) */

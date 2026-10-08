@@ -8,7 +8,7 @@
  */
 import jsonpatch, { type Operation } from "fast-json-patch";
 import type { Asset, PlanScene, Recipe, RecipeChange } from "@autoeditor/shared";
-import { changesOutsideAreas, clipDuration, deepEqual, diffRecipes } from "@autoeditor/shared";
+import { changesOutsideAreas, clipDuration, deepEqual, diffRecipes, parseRecipe } from "@autoeditor/shared";
 import type { CorrectionResult, EditorToolbox } from "../../services/types.js";
 import { round3 } from "./text.js";
 
@@ -235,4 +235,68 @@ export function buildScenes(recipe: Recipe, assets: Asset[], opts: { titles?: (i
       notes: [...new Set(sceneClips.map((c) => c.reason).filter(Boolean))].join(" "),
     };
   });
+}
+
+/** Escena descrita por el editor (título, rango en la línea final y notas). */
+export interface SceneOutline {
+  title: string;
+  start: number;
+  end: number;
+  notes: string;
+}
+
+/**
+ * Escenas del storyboard a partir del esquema que propone el editor (Claude): para cada rango se
+ * completan clips, textos, subtítulos, música, gráficos y pedidos de IA desde la receta.
+ * Sin esquema válido, cae a `buildScenes`.
+ */
+export function scenesFromOutline(recipe: Recipe, assets: Asset[], outline: SceneOutline[]): PlanScene[] {
+  const total = recipe.duration;
+  const ranges = outline
+    .map((o) => ({ ...o, start: Math.max(0, Math.min(o.start, total)), end: Math.max(0, Math.min(o.end, total)) }))
+    .filter((o) => o.end - o.start > 0.05)
+    .sort((a, b) => a.start - b.start);
+  if (!ranges.length || !recipe.tracks.video.length) return buildScenes(recipe, assets);
+  const assetName = new Map(assets.map((a) => [a.id, a.originalName]));
+  const music = recipe.tracks.audio.music[0];
+  const musicLabel = music ? `${assetName.get(music.assetId) ?? "Música"} a ${music.gainDb} dB${music.duck ? " (baja cuando se habla)" : ""}` : "";
+  return ranges.map((r, idx) => {
+    const overlapping = <T extends { start: number; end: number }>(items: T[]) => items.filter((it) => it.start < r.end && it.end > r.start);
+    const clips = recipe.tracks.video.filter((c) => c.start < r.end && c.start + clipDuration(c) > r.start);
+    return {
+      id: `escena-${idx + 1}`,
+      title: r.title.trim() || `Escena ${idx + 1}`,
+      start: round3(r.start),
+      end: round3(r.end),
+      clips: clips.map((c) => ({ assetId: c.assetId, sourceIn: c.sourceIn, sourceOut: c.sourceOut, label: c.label || assetName.get(c.assetId) || "" })),
+      onScreenText: overlapping(recipe.tracks.text).map((t) => t.text),
+      captions: recipe.tracks.captions.words.filter((w) => w.start >= r.start - 0.01 && w.start < r.end).map((w) => w.text).join(" "),
+      music: musicLabel,
+      graphics: [
+        ...overlapping(recipe.tracks.graphics).map((g) => g.description || `Gráfico ${g.templateId}`),
+        ...overlapping(recipe.tracks.overlays).map((o) => `${o.kind === "logo" ? "Logo" : "B-roll"}: ${assetName.get(o.assetId) ?? o.assetId} (${o.layout}, ${fmt(o.start)}–${fmt(o.end)})`),
+      ],
+      ai: recipe.ai
+        .filter((a) => (a.placeAt ? a.placeAt.start < r.end && a.placeAt.end > r.start : idx === 0))
+        .map((a) => ({ kind: a.kind, prompt: a.prompt, model: a.model, costUsd: a.costUsd })),
+      notes: r.notes.trim() || [...new Set(clips.map((c) => c.reason).filter(Boolean))].join(" "),
+    };
+  });
+}
+
+/**
+ * Aplica operaciones a una copia y valida con el esquema compartido (sin toolbox: para la revisión de
+ * calidad). Ignora rutas que calcula el servidor. Devuelve null si el parche no aplica o no valida.
+ */
+export function applyPatchLoose(recipe: Recipe, ops: PatchOp[]): Recipe | null {
+  const usable = ops.filter((op) => !SERVER_MANAGED.some((re) => re.test(op.path)));
+  if (!usable.length) return null;
+  try {
+    const doc = structuredClone(recipe);
+    if (jsonpatch.validate(usable as Operation[], doc)) return null;
+    const patched = jsonpatch.applyPatch(doc, usable as Operation[], true, false).newDocument;
+    return parseRecipe(patched);
+  } catch {
+    return null;
+  }
 }

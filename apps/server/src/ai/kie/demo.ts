@@ -87,7 +87,7 @@ export async function demoGenerate(request: AiRequest, modelId: string, opts: De
     const fontSize = Math.round(w / 22);
     // Rutas para el filtro: escapar ":" y "\" (Windows) dentro de la descripción del filtro.
     const tf = textFile.replace(/\\/g, "/").replace(/:/g, "\\:");
-    const gradient = `gradients=s=${w}x${h}:c0=${c0}:c1=${c1}:x0=0:y0=0:x1=${w}:y1=${h}:speed=${isVideo ? 0.02 : 0}:d=${isVideo ? seconds : 1}:r=${isVideo ? 30 : 1}:seed=${seed % 100000}`;
+    const gradient = `gradients=s=${w}x${h}:c0=${c0}:c1=${c1}:x0=0:y0=0:x1=${w}:y1=${h}:speed=${isVideo ? 0.02 : 0.00001}:d=${isVideo ? seconds : 1}:r=${isVideo ? 30 : 1}:seed=${seed % 100000}`;
     const motion = isVideo ? `,zoompan=z='min(1.15,1+0.0015*on)':d=1:s=${w}x${h}:fps=30` : "";
     const text = `,drawtext=textfile='${tf}':font='DejaVu Sans':fontsize=${fontSize}:fontcolor=white:line_spacing=${Math.round(fontSize / 3)}:box=1:boxcolor=black@0.35:boxborderw=${Math.round(fontSize / 2)}:x=(w-text_w)/2:y=(h-text_h)/2`;
     const out = isVideo ? `${base}.mp4` : `${base}.png`;

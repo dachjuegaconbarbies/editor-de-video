@@ -9,6 +9,7 @@ Protocolo (JSON-lines por stdout, una línea por evento):
 Uso:
   python transcribe.py --file clip.mp4 --model small --language auto --hotwords "Zyra,HyperFrames"
   python transcribe.py --model small --download-only          # solo descarga el modelo
+  python transcribe.py --model small --check                  # diagnóstico: ¿importa? ¿modelo? ¿red?
 
 Modelos: se guardan en una carpeta plana por modelo dentro de --models-dir
 (<models-dir>/faster-whisper-<modelo>). Si esa carpeta existe se carga sin tocar la red.
@@ -129,6 +130,49 @@ def ensure_model(model: str, models_dir: str) -> str:
     return target
 
 
+def repo_id(model: str) -> str:
+    try:
+        from faster_whisper.utils import _MODELS  # type: ignore[attr-defined]
+
+        return _MODELS.get(model, model if "/" in model else f"Systran/faster-whisper-{model}")
+    except Exception:  # noqa: BLE001
+        return f"Systran/faster-whisper-{model}"
+
+
+def check(model: str, models_dir: str) -> None:
+    """Diagnóstico: versión de faster-whisper, si el modelo está descargado y si se podría descargar."""
+    import faster_whisper
+
+    local = model if os.path.isdir(model) else model_dir(models_dir, model)
+    present = os.path.isfile(os.path.join(local, "model.bin"))
+    can_download = None
+    detail = ""
+    if not present and os.environ.get("HF_HUB_OFFLINE") != "1":
+        try:
+            from huggingface_hub import HfApi
+
+            HfApi().model_info(repo_id(model), timeout=5)
+            can_download = True
+        except Exception as e:  # noqa: BLE001
+            can_download = False
+            detail = f"{type(e).__name__}: {e}"[:300]
+    elif not present:
+        can_download = False
+        detail = "HF_HUB_OFFLINE=1"
+    emit(
+        {
+            "type": "check",
+            "fasterWhisper": getattr(faster_whisper, "__version__", "?"),
+            "model": model,
+            "modelPresent": present,
+            "path": local,
+            "canDownload": can_download,
+            "approxSize": APPROX_SIZE.get(model, ""),
+            "detail": detail,
+        }
+    )
+
+
 def parse_hotwords(raw: str) -> list[str]:
     terms: list[str] = []
     seen = set()
@@ -159,6 +203,7 @@ def main() -> None:
     ap.add_argument("--beam-size", type=int, default=5)
     ap.add_argument("--models-dir", default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "models", "whisper"))
     ap.add_argument("--download-only", action="store_true", help="Solo descarga el modelo y termina")
+    ap.add_argument("--check", action="store_true", help="Diagnóstico rápido (no descarga ni transcribe)")
     args = ap.parse_args()
 
     try:
@@ -171,6 +216,9 @@ def main() -> None:
         )
 
     models_dir = os.path.abspath(args.models_dir)
+    if args.check:
+        check(args.model, models_dir)
+        return
     path = ensure_model(args.model, models_dir)
     if args.download_only:
         emit({"type": "result", "downloaded": True, "model": args.model, "path": path, "language": "", "words": [], "segments": []})

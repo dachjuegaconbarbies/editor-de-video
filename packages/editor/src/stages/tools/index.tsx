@@ -11,9 +11,11 @@ import { ChevronDown, LayoutGrid } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useRef, useState } from "react";
 import { useActions, useEditor, useEditorShallow } from "../../store/context.js";
-import { EnginesBox, type EngineView, Field, OnOffFlag, Popover, PurpleButton, Segmented, SectionLabel, StageCard } from "../../ui/index.js";
+import { EnginesBox, type EngineView, OnOffFlag, Popover, PurpleButton, SectionLabel, StageCard } from "../../ui/index.js";
+import { joinEs, kieMissing, kieReasons } from "../../entrada/tools/engines.js";
+import { EnginesExplain, KieNotice, ToolOptionsPanel } from "../../entrada/tools/ToolPanels.js";
 import type { StageProps } from "../material/index.js";
-import { CATALOG_BY_KEY, GROUP_ICONS, QUICK_TOOLS, TOOL_ICONS, TOOL_OPTIONS, toolValueSummary, type ToolOption } from "./toolMeta.js";
+import { CATALOG_BY_KEY, GROUP_ICONS, QUICK_TOOLS, TOOL_ICONS, toolValueSummary } from "./toolMeta.js";
 
 const GROUPS: ToolGroup[] = ["edicion", "texto", "audio", "ia"];
 
@@ -27,7 +29,7 @@ export function useToggleTool() {
 
 /** Vista de los motores con sus reglas (Kie automático, Remotion opcional por licencia). */
 export function useEngineViews(): EngineView[] {
-  const { settings, remotionReady } = useEditorShallow((s) => ({ settings: s.settings, remotionReady: !!s.config?.capabilities.remotion.ready }));
+  const { settings, config, remotionReady } = useEditorShallow((s) => ({ settings: s.settings, config: s.config, remotionReady: !!s.config?.capabilities.remotion.ready }));
   const { updateSettings } = useActions();
   const engines = deriveEngines(settings);
   const mg = settings.tools.motionGraphics;
@@ -36,7 +38,9 @@ export function useEngineViews(): EngineView[] {
       key: "kie",
       name: "Kie AI",
       on: engines.kie,
-      lockedReason: engines.kie ? "Prendido solo: una herramienta usa IA generativa." : "Se prende solo al usar IA imágenes, IA videos o audio/B-roll con IA.",
+      lockedReason: engines.kie
+        ? `Prendido solo por ${joinEs(kieReasons(settings))}.${kieMissing(config) ? " Sin llave: marcadores de prueba." : ""}`
+        : "Se prende solo al usar IA imágenes, IA videos o audio/B-roll con IA.",
     },
     {
       key: "hyperframes",
@@ -178,6 +182,7 @@ function ToolsCompact() {
         );
       })}
       <EnginesBox engines={engines} size="sm" />
+      <KieNotice compact />
     </div>
   );
 }
@@ -229,74 +234,13 @@ function ToolsFocus({ initial }: { initial?: ToolKey }) {
             <OnOffFlag checked={tools[selected].enabled} label={meta.label} onChange={(v) => toggle(selected, v)} />
           </header>
           <p className="ae-help">{meta.help}</p>
-          <ToolOptions toolKey={selected} />
+          <ToolOptionsPanel toolKey={selected} />
         </section>
-        <EnginesBox engines={engines} />
+        <div className="ae-in-enginesside">
+          <EnginesBox engines={engines} />
+          <EnginesExplain />
+        </div>
       </aside>
     </div>
   );
 }
-
-function ToolOptions({ toolKey }: { toolKey: ToolKey }) {
-  const tool = useEditor((s) => s.settings.tools[toolKey]) as Record<string, unknown> & { enabled: boolean };
-  const { updateSettings } = useActions();
-  const options = TOOL_OPTIONS[toolKey] ?? [];
-  const setField = (field: string, value: unknown) =>
-    updateSettings((d) => {
-      (d.tools[toolKey] as Record<string, unknown>)[field] = value;
-      if (!d.tools[toolKey].enabled) d.tools[toolKey].enabled = true;
-    });
-  if (!options.length) return <p className="ae-help">No necesita ajustes: Claude la aplica con criterio de editor.</p>;
-  return (
-    <div className={clsx("ae-fields", !tool.enabled && "is-dimmed")}>
-      {options.map((opt) => (
-        <OptionField key={opt.field} option={opt} value={tool[opt.field]} onChange={(v) => setField(opt.field, v)} />
-      ))}
-    </div>
-  );
-}
-
-function OptionField({ option, value, onChange }: { option: ToolOption; value: unknown; onChange: (v: unknown) => void }) {
-  if (option.type === "enum") {
-    return (
-      <Field label={option.label} hint={option.help}>
-        <Segmented label={option.label} value={String(value ?? "")} onChange={onChange} options={option.options} wrap />
-      </Field>
-    );
-  }
-  if (option.type === "multi") {
-    const list = Array.isArray(value) ? (value as string[]) : [];
-    return (
-      <Field label={option.label}>
-        <div className="ae-row ae-row--wrap">
-          {option.options.map((o) => {
-            const on = list.includes(o.value);
-            return (
-              <button key={o.value} type="button" aria-pressed={on} className={clsx("ae-toolbtn", on && "is-on")} onClick={() => onChange(on ? list.filter((x) => x !== o.value) : [...list, o.value])}>
-                {o.label}
-              </button>
-            );
-          })}
-        </div>
-      </Field>
-    );
-  }
-  if (option.type === "number") {
-    const n = typeof value === "number" ? value : option.min;
-    return (
-      <Field label={`${option.label}: ${n}${option.suffix ? ` ${option.suffix}` : ""}`}>
-        <input type="range" className="ae-range" min={option.min} max={option.max} step={option.step ?? 1} value={n} aria-label={option.label} onChange={(e) => onChange(Number(e.target.value))} />
-      </Field>
-    );
-  }
-  return (
-    <Field label={option.label}>
-      {option.multiline ? (
-        <textarea className="ae-input ae-textarea" rows={4} value={String(value ?? "")} placeholder={option.placeholder} onChange={(e) => onChange(e.target.value)} />
-      ) : (
-        <input className="ae-input" value={String(value ?? "")} placeholder={option.placeholder} onChange={(e) => onChange(e.target.value)} />
-      )}
-    </Field>
-  );
-}
-

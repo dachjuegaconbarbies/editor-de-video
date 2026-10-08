@@ -1,33 +1,41 @@
 /**
- * Etapa TRANSCRIPCIÓN, SUBTÍTULOS Y PALABRAS CLAVE (versión base; la ola 2 la profundiza).
- * - Transcripción palabra por palabra (resumen en el lienzo, texto completo en la vista enfocada).
- * - Palabras clave como chips editables.
- * - Subtítulos con su ON/OFF y una vista previa del estilo.
+ * Etapa TRANSCRIPCIÓN, SUBTÍTULOS Y PALABRAS CLAVE.
+ * - Lienzo: extracto de la transcripción, palabras clave activas y subtítulos (ON/OFF + miniatura en vivo).
+ * - Vista enfocada, en pestañas:
+ *   · Transcripción: editor sincronizado con el reproductor (saltar, resaltar, marcar, corregir → glosario).
+ *   · Palabras clave: chips por categoría + texto sugerido para publicar.
+ *   · Subtítulos: estilo con vista previa en vivo sobre un fotograma real y zonas seguras.
  */
-import type { CaptionStyle, Keyword, Transcript } from "@autoeditor/shared";
+import type { Keyword, Transcript } from "@autoeditor/shared";
 import clsx from "clsx";
-import { AudioLines, Plus } from "lucide-react";
-import { nanoid } from "nanoid";
-import { useMemo, useState } from "react";
+import { AudioLines, Captions, KeyRound, LoaderCircle, Megaphone } from "lucide-react";
+import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { truncate } from "../../lib/format.js";
-import { useActions, useApi, useEditor, useEditorShallow, useStageStates } from "../../store/context.js";
-import { Chip, EmptyState, Field, OnOffFlag, PostIt, SectionLabel, Segmented, StageCard, Switch } from "../../ui/index.js";
+import { useActions, useEditor, useEditorShallow, useStageStates } from "../../store/context.js";
+import { Chip, EmptyState, OnOffFlag, PostIt, SectionLabel, StageCard } from "../../ui/index.js";
+import { CaptionLivePreview, CaptionStyler } from "../../entrada/captions/CaptionStyler.js";
+import { KW_TONE, KeywordsPanel, PublishCopyCard } from "../../entrada/transcript/KeywordsPanel.js";
+import { LANG_LABELS, TranscriptEditor, type TranscriptJump } from "../../entrada/transcript/TranscriptEditor.js";
 import type { StageProps } from "../material/index.js";
 
-const LANG_LABELS: Record<string, string> = { es: "Español", en: "Inglés", pt: "Portugués", auto: "Automático" };
-
-const KW_TONE: Record<Keyword["category"], "purple" | "mint" | "coral" | "yellow" | "peach" | "neutral"> = {
-  gancho: "coral",
-  cta: "coral",
-  cifra: "yellow",
-  nombre: "peach",
-  beneficio: "mint",
-  tema: "purple",
-  otro: "neutral",
+const CHIP_TONE: Record<string, "purple" | "mint" | "coral" | "yellow" | "peach" | "neutral" | "ink"> = {
+  coral: "coral",
+  purple: "purple",
+  peach: "peach",
+  yellow: "yellow",
+  mint: "mint",
+  ink: "ink",
+  neutral: "neutral",
 };
 
+export const kwChipTone = (c: Keyword["category"]) => CHIP_TONE[KW_TONE[c]] ?? "neutral";
+
 function transcriptText(t: Transcript): string {
-  return t.words.map((w) => w.text).join(" ").replace(/\s+([,.;:!?])/g, "$1");
+  return t.words
+    .filter((w) => w.mark !== "quitar")
+    .map((w) => w.text)
+    .join(" ")
+    .replace(/\s+([,.;:!?])/g, "$1");
 }
 
 export function TranscriptionStage({ variant }: StageProps) {
@@ -42,10 +50,13 @@ export function TranscriptionStage({ variant }: StageProps) {
   );
 }
 
+// ---------------------------------------------------------------------------- Compacto (lienzo)
+
 function TranscriptionCompact() {
   const { transcripts, keywords, captions } = useEditorShallow((s) => ({ transcripts: s.transcripts, keywords: s.keywords, captions: s.settings.captions }));
-  const { updateSettings } = useActions();
+  const { updateSettings, openFocus } = useActions();
   const ready = transcripts.filter((t) => t.status === "listo" && t.words.length);
+  const busy = transcripts.filter((t) => t.status === "transcribiendo" || t.status === "pendiente").length;
   const first = ready[0];
   const words = ready.reduce((s, t) => s + t.words.length, 0);
   const enabledKw = keywords.filter((k) => k.enabled);
@@ -54,10 +65,14 @@ function TranscriptionCompact() {
       {first ? (
         <PostIt className="ae-transcript-note">
           <div className="ae-transcript-note__meta">
-            {LANG_LABELS[first.language] ?? first.language} · {words} palabras
+            {LANG_LABELS[first.language] ?? first.language} · {words} palabras{ready.length > 1 ? ` · ${ready.length} clips` : ""}
           </div>
           <p>“{truncate(transcriptText(first), 150)}”</p>
         </PostIt>
+      ) : busy ? (
+        <div className="ae-in-txmini" role="status">
+          <LoaderCircle size={14} className="ae-spin" aria-hidden /> Transcribiendo {busy === 1 ? "1 clip" : `${busy} clips`}…
+        </div>
       ) : (
         <EmptyState compact icon={<AudioLines size={20} />} title="Sin transcripción todavía">
           Aparece en cuanto subas material con voz. Podrás corregir palabras y se guardan en tu glosario.
@@ -68,7 +83,7 @@ function TranscriptionCompact() {
         {enabledKw.length ? (
           <div className="ae-row ae-row--wrap ae-row--tight">
             {enabledKw.slice(0, 7).map((k) => (
-              <Chip key={k.id} size="sm" tone={KW_TONE[k.category]}>
+              <Chip key={k.id} size="sm" tone={kwChipTone(k.category)}>
                 {k.text}
               </Chip>
             ))}
@@ -85,174 +100,114 @@ function TranscriptionCompact() {
       <div className="ae-subrow">
         <div className="ae-subrow__label">
           <span>Subtítulos</span>
-          <span className="ae-help">{captions.enabled ? captionModeLabel(captions.style.mode) : "Sin subtítulos"}</span>
+          <span className="ae-help">{captions.enabled ? `${captionModeLabel(captions.style.mode)} · ${captions.style.font.family}` : "Sin subtítulos"}</span>
         </div>
-        <OnOffFlag
-          checked={captions.enabled}
-          label="Subtítulos"
-          onChange={(v) =>
-            updateSettings((d) => {
-              d.captions.enabled = v;
-            })
-          }
-        />
+        <OnOffFlag checked={captions.enabled} label="Subtítulos" onChange={(v) => updateSettings((d) => void (d.captions.enabled = v))} />
       </div>
-      {captions.enabled && <CaptionPreview style={captions.style} />}
+      {captions.enabled && (
+        <button type="button" className="ae-in-capmini nodrag" onClick={() => openFocus("transcripcion", "subtitulos")} aria-label="Ajustar el estilo de los subtítulos">
+          <CaptionLivePreview interactive={false} showSafe={false} maxHeight={150} />
+          <span className="ae-in-capmini__text">
+            <b>Así se verán</b>
+            <span>
+              {captions.style.uppercase ? "Mayúsculas" : "Normal"} · {captions.style.position === "abajo" ? "abajo" : captions.style.position === "arriba" ? "arriba" : "al centro"}
+              {captions.style.highlightKeywords ? " · resalta palabras clave" : ""}
+            </span>
+            <span className="ae-in-capmini__cta">Ajustar estilo →</span>
+          </span>
+        </button>
+      )}
     </div>
   );
 }
 
-function captionModeLabel(mode: CaptionStyle["mode"]) {
+function captionModeLabel(mode: "palabra" | "frase" | "bloque") {
   return mode === "palabra" ? "Palabra por palabra" : mode === "frase" ? "Por frase" : "Por bloque";
-}
-
-export function CaptionPreview({ style, frameUrl, large }: { style: CaptionStyle; frameUrl?: string | null; large?: boolean }) {
-  const text = ["ASÍ SE VEN", "TUS", "SUBTÍTULOS"];
-  const fmt = (t: string) => (style.uppercase ? t.toUpperCase() : t.charAt(0) + t.slice(1).toLowerCase());
-  return (
-    <div className={clsx("ae-capprev", large && "ae-capprev--lg", `ae-capprev--${style.position}`)} style={frameUrl ? { backgroundImage: `linear-gradient(rgba(0,0,0,.15), rgba(0,0,0,.35)), url("${frameUrl}")` } : undefined} aria-label="Vista previa de subtítulos">
-      <span
-        className={clsx("ae-capprev__text", style.background === "caja" && "has-box")}
-        style={{
-          color: style.primaryColor,
-          fontFamily: `"${style.font.family}", var(--ae-font)`,
-          fontWeight: style.font.weight,
-          WebkitTextStroke: style.background === "ninguno" && style.outlineWidth ? `${Math.min(2, style.outlineWidth / 4)}px ${style.outlineColor}` : undefined,
-          background: style.background === "caja" ? style.boxColor : undefined,
-        }}
-      >
-        {fmt(text[0]!)} <span style={{ color: style.highlightColor }}>{fmt(text[1]!)}</span> {fmt(text[2]!)}
-      </span>
-    </div>
-  );
 }
 
 // ---------------------------------------------------------------------------- Vista enfocada
 
+type Tab = "texto" | "palabras" | "subtitulos";
+
 function TranscriptionFocus() {
-  const { transcripts, keywords, captions, assets, projectId } = useEditorShallow((s) => ({
-    transcripts: s.transcripts,
-    keywords: s.keywords,
-    captions: s.settings.captions,
-    assets: s.assets,
-    projectId: s.project?.id ?? null,
-  }));
-  const { updateSettings, setKeywords } = useActions();
-  const api = useApi();
-  const [kwText, setKwText] = useState("");
-  const ready = transcripts.filter((t) => t.status === "listo");
-  const frameAsset = assets.find((a) => a.category === "crudo-video" && a.analysis.role !== "b-roll") ?? assets.find((a) => a.category === "crudo-video");
-  const frameUrl = frameAsset ? api.assetThumbnailUrl(frameAsset) : null;
-  const kwSet = useMemo(() => new Set(keywords.filter((k) => k.enabled).map((k) => k.text.toLowerCase())), [keywords]);
-
-  const saveKeywords = (next: Keyword[]) => {
-    setKeywords(next);
-    if (projectId) void api.putKeywords(projectId, next).catch(() => undefined);
-  };
-  const addKeyword = () => {
-    const t = kwText.trim();
-    if (!t) return;
-    saveKeywords([...keywords, { id: nanoid(8), text: t, category: "otro", source: "usuario", enabled: true, occurrences: [], score: 1 }]);
-    setKwText("");
-  };
-  const setStyle = (fn: (s: CaptionStyle) => void) => updateSettings((d) => fn(d.captions.style));
-
+  const target = useEditor((s) => s.focus?.target);
+  const { transcripts, keywords, captionsOn } = useEditorShallow((s) => ({ transcripts: s.transcripts, keywords: s.keywords, captionsOn: s.settings.captions.enabled }));
+  const [tab, setTab] = useState<Tab>(target === "subtitulos" ? "subtitulos" : target === "palabras" ? "palabras" : "texto");
+  const [jump, setJump] = useState<TranscriptJump | null>(null);
+  const words = transcripts.reduce((s, t) => s + (t.status === "listo" ? t.words.length : 0), 0);
+  const busy = transcripts.some((t) => t.status === "transcribiendo" || t.status === "pendiente");
+  const tabs: { id: Tab; label: string; icon: ReactNode; badge: ReactNode }[] = [
+    { id: "texto", label: "Transcripción", icon: <AudioLines size={15} aria-hidden />, badge: busy ? <LoaderCircle size={12} className="ae-spin" aria-label="Transcribiendo" /> : words ? <span className="ae-count">{words}</span> : null },
+    { id: "palabras", label: "Palabras clave", icon: <KeyRound size={15} aria-hidden />, badge: keywords.length ? <span className="ae-count">{keywords.filter((k) => k.enabled).length}</span> : null },
+    { id: "subtitulos", label: "Subtítulos", icon: <Captions size={15} aria-hidden />, badge: <span className={clsx("ae-in-tabs__flag", captionsOn && "is-on")}>{captionsOn ? "ON" : "OFF"}</span> },
+  ];
   return (
-    <div className="ae-trans-focus">
-      <section className="ae-panel ae-trans-focus__text" aria-label="Transcripción">
-        <header className="ae-panel__head">
-          <h3>Transcripción</h3>
-          {ready[0] && <span className="ae-help">{LANG_LABELS[ready[0].language] ?? ready[0].language}</span>}
-        </header>
-        {ready.length === 0 ? (
-          <EmptyState icon={<AudioLines size={22} />} title="Todavía no hay transcripción">
-            Aparece en cuanto subas material con voz. Cada palabra trae su tiempo exacto.
-          </EmptyState>
-        ) : (
-          ready.map((t) => {
-            const asset = assets.find((a) => a.id === t.assetId);
-            return (
-              <div key={t.id} className="ae-transcript">
-                <div className="ae-transcript__file">{asset?.originalName ?? "Archivo"}</div>
-                <p className="ae-transcript__words">
-                  {t.words.map((w) => (
-                    <span
-                      key={w.i}
-                      className={clsx("ae-word", w.mark && `is-${w.mark}`, w.filler && "is-filler", kwSet.has(w.text.toLowerCase().replace(/[.,!?¿¡]/g, "")) && "is-keyword")}
-                      title={`${w.start.toFixed(2)} s`}
-                    >
-                      {w.text}{" "}
-                    </span>
-                  ))}
-                </p>
-              </div>
-            );
-          })
+    <div className="ae-in-transfocus">
+      <Tabs tabs={tabs} value={tab} onChange={setTab} />
+      <div className="ae-in-transfocus__panel" role="tabpanel" aria-label={tabs.find((t) => t.id === tab)?.label}>
+        {tab === "texto" && <TranscriptEditor jump={jump} />}
+        {tab === "palabras" && (
+          <div className="ae-in-kwlayout">
+            <section className="ae-panel" aria-label="Palabras clave">
+              <header className="ae-panel__head">
+                <h3>
+                  <KeyRound size={17} aria-hidden /> Palabras clave
+                </h3>
+              </header>
+              <KeywordsPanel
+                onJump={(j) => {
+                  setJump(j);
+                  setTab("texto");
+                }}
+              />
+            </section>
+            <section className="ae-panel ae-in-pubpanel" aria-label="Texto para publicar">
+              <header className="ae-panel__head">
+                <h3>
+                  <Megaphone size={17} aria-hidden /> Texto para publicar
+                </h3>
+              </header>
+              <PublishCopyCard />
+            </section>
+          </div>
         )}
-      </section>
-      <div className="ae-trans-focus__side">
-        <section className="ae-panel" aria-label="Palabras clave">
-          <header className="ae-panel__head">
-            <h3>Palabras clave</h3>
-            <span className="ae-count">{keywords.filter((k) => k.enabled).length}</span>
-          </header>
-          <p className="ae-help">Se resaltan en los subtítulos y guían dónde van gráficos, zooms, SFX y B-roll.</p>
-          <div className="ae-row ae-row--wrap">
-            {keywords.map((k) => (
-              <Chip
-                key={k.id}
-                tone={k.enabled ? KW_TONE[k.category] : "outline"}
-                className={clsx(!k.enabled && "is-disabled")}
-                onRemove={() => saveKeywords(keywords.filter((x) => x.id !== k.id))}
-                removeLabel={`Quitar ${k.text}`}
-              >
-                {k.text}
-              </Chip>
-            ))}
-          </div>
-          <div className="ae-row">
-            <input className="ae-input ae-input--sm ae-grow" placeholder="Agregar palabra o frase" aria-label="Agregar palabra clave" value={kwText} onChange={(e) => setKwText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addKeyword()} />
-            <button type="button" className="ae-btn ae-btn--ghost ae-btn--sm" onClick={addKeyword}>
-              <Plus size={14} aria-hidden />
-              <span className="ae-btn__label">Agregar</span>
-            </button>
-          </div>
-        </section>
-        <section className="ae-panel" aria-label="Subtítulos">
-          <header className="ae-panel__head">
-            <h3>Subtítulos</h3>
-            <OnOffFlag checked={captions.enabled} label="Subtítulos" onChange={(v) => updateSettings((d) => void (d.captions.enabled = v))} />
-          </header>
-          <CaptionPreview style={captions.style} frameUrl={frameUrl} large />
-          <Field label="Estilo">
-            <Segmented
-              label="Estilo de subtítulos"
-              value={captions.style.mode}
-              onChange={(mode) => setStyle((s) => void (s.mode = mode))}
-              options={[
-                { value: "palabra", label: "Palabra por palabra" },
-                { value: "frase", label: "Por frase" },
-                { value: "bloque", label: "Por bloque" },
-              ]}
-            />
-          </Field>
-          <Field label="Posición">
-            <Segmented
-              label="Posición de subtítulos"
-              value={captions.style.position}
-              onChange={(position) => setStyle((s) => void (s.position = position))}
-              options={[
-                { value: "arriba", label: "Arriba" },
-                { value: "centro", label: "Centro" },
-                { value: "abajo", label: "Abajo" },
-              ]}
-            />
-          </Field>
-          <Switch label="Mayúsculas" checked={captions.style.uppercase} onChange={(v) => setStyle((s) => void (s.uppercase = v))} />
-          <Switch label="Resaltar palabras clave" checked={captions.style.highlightKeywords} onChange={(v) => setStyle((s) => void (s.highlightKeywords = v))} />
-          <Switch label="Exportar .srt y .vtt" checked={captions.exportFiles} onChange={(v) => updateSettings((d) => void (d.captions.exportFiles = v))} />
-        </section>
+        {tab === "subtitulos" && <CaptionStyler />}
       </div>
+    </div>
+  );
+}
+
+function Tabs<T extends string>({ tabs, value, onChange }: { tabs: { id: T; label: string; icon: ReactNode; badge?: ReactNode }[]; value: T; onChange: (v: T) => void }) {
+  const refs = useRef<(HTMLButtonElement | null)[]>([]);
+  const onKey = (e: KeyboardEvent, i: number) => {
+    const dir = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+    if (!dir) return;
+    e.preventDefault();
+    const n = (i + dir + tabs.length) % tabs.length;
+    onChange(tabs[n]!.id);
+    refs.current[n]?.focus();
+  };
+  return (
+    <div className="ae-in-tabs" role="tablist" aria-label="Secciones">
+      {tabs.map((t, i) => (
+        <button
+          key={t.id}
+          ref={(el) => {
+            refs.current[i] = el;
+          }}
+          type="button"
+          role="tab"
+          aria-selected={value === t.id}
+          tabIndex={value === t.id ? 0 : -1}
+          className={clsx("ae-in-tabs__tab", value === t.id && "is-on")}
+          onClick={() => onChange(t.id)}
+          onKeyDown={(e) => onKey(e, i)}
+        >
+          {t.icon}
+          <span>{t.label}</span>
+          {t.badge}
+        </button>
+      ))}
     </div>
   );
 }

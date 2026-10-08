@@ -32,7 +32,7 @@ export interface ClipPlayerProps {
   /** Capa sobre la imagen (p. ej. subtítulos). */
   overlay?: ReactNode;
   /** Contenido bajo la barra (p. ej. tira de B-roll). */
-  below?: (state: { time: number; duration: number; seek: (t: number) => void }) => ReactNode;
+  below?: (state: { time: number; duration: number; seek: (t: number, play?: boolean) => void }) => ReactNode;
   size?: "md" | "lg";
   className?: string;
   autoFocus?: boolean;
