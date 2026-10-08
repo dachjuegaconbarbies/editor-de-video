@@ -63,6 +63,10 @@ vista** y funcionar así:
      - **Si son varios clips desordenados, la app los revisa y los ORDENA sola** (por el sentido de lo que se dice y
        el guion si existe; como apoyo, hora de grabación y nombre del archivo) y muestra el orden sugerido con el
        porqué; el usuario puede reacomodarlos.
+     - **El usuario SOLO sube; nunca etiqueta nada.** Dentro de los mismos clips base puede haber de todo: partes
+       donde la persona habla (A-roll), tomas de apoyo (B-roll), tomas repetidas y tiempos muertos. Claude los
+       identifica **por fragmentos dentro de cada clip** y los usa como corresponde (lo hablado como columna del video,
+       los fragmentos de B-roll de fondo o como cortes sobre lo que se dice, la mejor toma de cada frase).
      - **Si es una grabación larga sin cortar (p. ej. una hora) o varios clips crudos**, la limpia: detecta tomas
        repetidas de la misma frase y se queda con la mejor (normalmente la última completa), quita arranques en falso,
        silencios, muletillas y tiempos muertos, y arma una edición coherente a la duración pedida.
