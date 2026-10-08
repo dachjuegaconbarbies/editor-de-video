@@ -57,10 +57,17 @@ El diagrama original era solo referencia del flujo; **no hay que copiarlo**. La 
 vista** y funcionar así:
 
 - **La pizarra (fondo gris con cuadrícula) contiene un ESTUDIO: un panel blanco, limpio y centrado** donde pasa todo:
-  1. **Arriba, lo principal: MATERIAL EN CRUDO** — una zona grande para arrastrar los clips (o tocar para elegir).
-     Se pueden vaciar/quitar todos con un botón.
-  2. **Debajo, todo lo demás:** elementos del video (música, logos, imágenes, efectos) y **referencias visuales**
-     (imágenes o links con "qué me gusta de esto"). También vaciables.
+  1. **Arriba, separado, SOLO EL CLIP BASE** — el video principal que se va a editar (normalmente la persona hablando).
+     Zona grande para arrastrarlo (o tocar para elegir); si suben varios, se usan en orden como columna del video.
+     Se puede quitar/vaciar con un botón. Es lo ÚNICO que va separado arriba.
+     - **Si son varios clips desordenados, la app los revisa y los ORDENA sola** (por el sentido de lo que se dice y
+       el guion si existe; como apoyo, hora de grabación y nombre del archivo) y muestra el orden sugerido con el
+       porqué; el usuario puede reacomodarlos.
+     - **Si es una grabación larga sin cortar (p. ej. una hora) o varios clips crudos**, la limpia: detecta tomas
+       repetidas de la misma frase y se queda con la mejor (normalmente la última completa), quita arranques en falso,
+       silencios, muletillas y tiempos muertos, y arma una edición coherente a la duración pedida.
+  2. **Abajo, todo lo demás junto:** otros clips y tomas de apoyo (B-roll), fotos, música, logos, imágenes, efectos y
+     **referencias visuales** (imágenes o links con "qué me gusta de esto"). Vaciable.
   3. **"¿Cómo quieres el video?"** (una caja de texto, opcional) + formato y duración en chips.
   4. **Opciones apagadas por defecto que se van habilitando** (subtítulos/estilo de texto, B-roll, música, motion
      graphics, IA…). Con solo subir material y tocar GENERAR, Claude edita en automático.

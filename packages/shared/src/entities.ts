@@ -34,6 +34,8 @@ export type Project = z.infer<typeof Project>;
 
 /** Categoría = zona de arrastre del nodo MATERIAL (o archivo generado internamente). */
 export const AssetCategory = z.enum([
+  /** Clip base: el video principal (columna de la edición). Va separado arriba en el estudio. */
+  "clip-base",
   "crudo-video",
   "crudo-foto",
   "crudo-voz",
