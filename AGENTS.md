@@ -42,7 +42,7 @@ data/                                 (ignorado por git) base de datos, archivos
 | `media/` | ffprobe, miniaturas, fotogramas, escenas, silencios, loudness, rostros. |
 | `transcription/` | Proveedores: faster-whisper (local), API compatible, demo. |
 | `render/` | Receta → ffmpeg (cortes, transiciones, reencuadre, color, textos, subtítulos ASS, audio con ducking y loudnorm, overlays). |
-| `motion/` | Motores de motion graphics: HyperFrames (por defecto), builtin (ffmpeg/ASS), Remotion (opcional, apagado). |
+| `motion/` | Motores de motion graphics: HyperFrames (por defecto), builtin (ffmpeg/ASS), Remotion (opcional, encendido en `config/providers.json`; ProRes 4444 con alfa). |
 | `ai/` | Cliente de Claude, cerebro editor (agente con herramientas), editor demo, correcciones (parches RFC 6902), revisión de calidad, palabras clave, Kie AI. |
 | `pipeline/` | Orquestación de trabajos: generar, plan, corregir, exportar. |
 | `styles/` | Guardar estilo (preset + ficha de reglas + Skill exportable), importar/exportar zip. |
@@ -59,7 +59,9 @@ data/                                 (ignorado por git) base de datos, archivos
 5. **`owner_id` en todas las tablas** y en todas las consultas.
 6. **Modelos, precios y proveedores en `/config`**, nunca fijos en código.
 7. **Modo demo:** sin llaves, la app funciona de punta a punta (editor determinista + IA simulada).
-8. Remotion queda **opcional y apagado** por licencia (ver `docs/research/skills-remotion-warp.md`).
+8. Remotion es **opcional** y está encendido en `config/providers.json` (`motion.remotion.enabled`). Su licencia exige
+   Company License a partir de 4 personas y renders de pago para automatizar: si no aplica a tu caso, apágalo ahí
+   (ver `docs/research/skills-remotion-warp.md`). El motor por defecto sigue siendo HyperFrames.
 
 ## Comandos
 

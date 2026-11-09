@@ -171,7 +171,7 @@ El editor está pensado para montarse dentro del backend y la web de Zyra sin re
 
 ## Licencias y notas
 
-- **Remotion** es un motor opcional y está **apagado**: requiere licencia de empresa a partir de 4 personas y,
+- **Remotion** es un motor opcional y está **encendido** (`motion.remotion.enabled` en `config/providers.json`; apágalo ahí si no te aplica). Requiere licencia de empresa a partir de 4 personas y,
   para renders automatizados, el plan "Automators" (USD 0.01 por render, mínimo USD 100 al mes). El motor por
   defecto es **HyperFrames**. Detalles en `docs/research/skills-remotion-warp.md`.
 - Kie AI cambia modelos y precios seguido: edítalos en `config/providers.json` (los costos reales de cada

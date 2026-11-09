@@ -24,6 +24,8 @@
     "@fastify/swagger": "^9.9.1",
     "@fastify/swagger-ui": "^6.1.1",
     "@hyperframes/producer": "^0.8.121",
+    "@remotion/bundler": "4.0.532",
+    "@remotion/renderer": "4.0.532",
     "archiver": "^8.0.0",
     "fast-json-patch": "^3.1.1",
     "fastify": "^5.12.5",
@@ -32,6 +34,9 @@
     "hyperframes": "^0.8.120",
     "mammoth": "^1.13.0",
     "nanoid": "^6.0.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "remotion": "4.0.532",
     "unpdf": "^1.8.1",
     "yauzl": "^3.4.0",
     "zod": "^4.6.5"

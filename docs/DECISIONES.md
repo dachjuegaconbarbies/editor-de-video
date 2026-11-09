@@ -58,7 +58,7 @@ Se actualiza conforme avanza el proyecto.
   color, textos y subtítulos ASS (karaoke palabra por palabra con resaltado de palabras clave), audio con ducking
   (`sidechaincompress`) y `loudnorm` a −14 LUFS, overlays con alfa.
 - Motion graphics: **HyperFrames** por defecto (HTML → video), motor *builtin* (ffmpeg/ASS) como respaldo,
-  **Remotion opcional y apagado** por su licencia (empresa ≥ 4 personas y compra de renders automatizados).
+  **Remotion opcional, encendido a petición del dueño** (`motion.remotion.enabled`), con las mismas plantillas dentro de una composición y salida ProRes 4444 con alfa; su licencia exige empresa ≥ 4 personas y compra de renders automatizados.
 
 ## 7. IA generativa: Kie AI detrás de un adaptador
 

@@ -604,8 +604,8 @@
       "timeoutMs": 300000
     },
     "remotion": {
-      "enabled": false,
-      "licenseNote": "Remotion requiere licencia de empresa a partir de 4 personas y compra de 'Renders' para renders automatizados. Apagado por defecto."
+      "enabled": true,
+      "licenseNote": "Remotion es gratis para individuos y equipos de hasta 3 personas; con 4 o más hace falta Company License y compra de 'Renders' para renders automatizados."
     }
   }
 }

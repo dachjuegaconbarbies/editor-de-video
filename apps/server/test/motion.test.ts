@@ -1,6 +1,6 @@
 /**
  * Motores de motion graphics: plantillas de fábrica, builtin (ffmpeg + libass con alfa), Remotion
- * apagado y HyperFrames real si en esta máquina hay Chrome headless (sin red: GSAP va vendorizado).
+ * (render real si hay Chrome) y HyperFrames real si en esta máquina hay Chrome headless (sin red: GSAP va vendorizado).
  */
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -76,7 +76,7 @@ describe("motores", () => {
     tmp = await mkdtemp(path.join(os.tmpdir(), "autoeditor-motion-"));
     engines = createMotionEngines({
       env: loadEnv({ dataDir: path.join(tmp, "data") }),
-      config: { defaultEngine: "hyperframes", hyperframes: { enabled: true, command: "hyperframes", timeoutMs: 240_000 }, remotion: { enabled: false, licenseNote: "" } },
+      config: { defaultEngine: "hyperframes", hyperframes: { enabled: true, command: "hyperframes", timeoutMs: 240_000 }, remotion: { enabled: true, licenseNote: "" } },
       log: quietLog,
     });
   });
@@ -84,12 +84,42 @@ describe("motores", () => {
     await rm(tmp, { recursive: true, force: true });
   });
 
-  it("Remotion queda apagado y lo explica", async () => {
+  it("Remotion: disponible, con las plantillas de fábrica y su nota de licencia", async () => {
     const a = await engines.remotion!.available();
-    expect(a.ready).toBe(false);
-    expect(a.detail).toMatch(/licencia/i);
-    expect(engines.remotion!.builtinTemplates()).toEqual([]);
+    expect(a.ready).toBe(true);
+    expect(a.detail).toMatch(/Company License/i);
+    expect(engines.remotion!.builtinTemplates().map((t) => t.id).sort()).toEqual([...REQUIRED].sort());
   });
+
+  it("Remotion apagado en la config: no disponible y lo explica", async () => {
+    const off = createMotionEngines({
+      env: loadEnv({ dataDir: path.join(tmp, "data-off") }),
+      config: { defaultEngine: "hyperframes", hyperframes: { enabled: true, command: "hyperframes", timeoutMs: 240_000 }, remotion: { enabled: false, licenseNote: "" } },
+      log: quietLog,
+    });
+    const a = await off.remotion!.available();
+    expect(a.ready).toBe(false);
+    expect(a.detail).toMatch(/apagado/i);
+  });
+
+  it.skipIf(!existsSync("/opt/pw-browsers/chromium"))("Remotion: renderiza un clip ProRes 4444 con alfa y reutiliza la caché", async () => {
+    const eng = engines.remotion!;
+    const tpl = eng.builtinTemplates().find((t) => t.id === "palabra-clave-pop")!;
+    const out = path.join(tmp, "rm-kw.mov");
+    const input = { template: tpl, props: { text: "Gratis" }, duration: 1, width: 540, height: 960, fps: 24, outPath: out };
+    const r = await eng.renderGraphic(input);
+    expect(r.hasAlpha).toBe(true);
+    const s = streamInfo(out);
+    expect([s.width, s.height, Number(s.nb_frames)]).toEqual([540, 960, 24]);
+    expect(s.pix_fmt).toMatch(/^yuva/);
+    const [zero, full, total] = alphaStats(out, 0.6);
+    expect(zero / total).toBeGreaterThan(0.5);
+    expect(full).toBeGreaterThan(0);
+    const out2 = path.join(tmp, "rm-kw2.mov");
+    const again = await eng.renderGraphic({ ...input, outPath: out2 });
+    expect(again.seconds).toBeLessThan(r.seconds);
+    expect((await stat(out2)).size).toBe((await stat(out)).size);
+  }, 300_000);
 
   it("builtin: clip con canal alfa, duración exacta y caché determinista", async () => {
     const eng = engines.builtin!;
